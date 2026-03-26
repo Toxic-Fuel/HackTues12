@@ -9,8 +9,10 @@ namespace GridGeneration
 {
     public class GridMap : MonoBehaviour
     {
-        [field: SerializeField] public int width { get; private set; }
-        [field: SerializeField] public int height { get; private set; }
+        [SerializeField] private int width = 20;
+        [SerializeField] private int height = 20;
+        public int Width => width;
+        public int Height => height;
         [SerializeField] private float spacing, tileSize;
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private int seed;

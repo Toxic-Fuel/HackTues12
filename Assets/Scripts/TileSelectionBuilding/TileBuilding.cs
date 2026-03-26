@@ -55,7 +55,7 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        if (!TryParseTileCoordinate(hit.collider.gameObject.name, out Vector2Int hoveredCoordinate))
+        if (!TryGetTileCoordinateFromHit(hit.collider.transform, out Vector2Int hoveredCoordinate))
         {
             ClearHoveredTile();
             return;
@@ -137,7 +137,7 @@ public class TileBuilding : MonoBehaviour
 
     private bool IsAdjacentToPlayer(Vector2Int targetCoordinate)
     {
-        if (!gridMap.TryWorldToGridCoordinate(playerTransform.position, out Vector2Int playerCoordinate))
+        if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
         {
             return false;
         }
@@ -146,6 +146,40 @@ public class TileBuilding : MonoBehaviour
         int dy = Mathf.Abs(targetCoordinate.y - playerCoordinate.y);
 
         return (dx <= 1 && dy <= 1) && (dx != 0 || dy != 0);
+    }
+
+    private bool TryGetPlayerCoordinate(out Vector2Int playerCoordinate)
+    {
+        playerCoordinate = new Vector2Int(-1, -1);
+
+        Vector3 rayStart = playerTransform.position + Vector3.up * 2f;
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 8f))
+        {
+            if (TryGetTileCoordinateFromHit(hit.collider.transform, out playerCoordinate))
+            {
+                return true;
+            }
+        }
+
+        return gridMap.TryWorldToGridCoordinate(playerTransform.position, out playerCoordinate);
+    }
+
+    private bool TryGetTileCoordinateFromHit(Transform hitTransform, out Vector2Int coordinate)
+    {
+        coordinate = new Vector2Int(-1, -1);
+        Transform current = hitTransform;
+
+        while (current != null)
+        {
+            if (TryParseTileCoordinate(current.name, out coordinate))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
     }
 
     private bool CanBuildOnTile(Vector2Int coordinate, out int woodCost, out int stoneCost)
