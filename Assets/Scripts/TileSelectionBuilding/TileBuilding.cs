@@ -34,6 +34,7 @@ public class TileBuilding : MonoBehaviour
 
     [Header("Testing")]
     [SerializeField] private bool allowBuildOnAnyTileForTesting = true;
+    [SerializeField] private bool bypassTurnAndResourceChecksForTesting = true;
 
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
@@ -159,37 +160,40 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        if (!turns.CanTakeAction)
+        if (!bypassTurnAndResourceChecksForTesting)
         {
-            if (enableDebugLogs)
+            if (!turns.CanTakeAction)
             {
-                Debug.Log("Build blocked: no action available this turn.", this);
+                if (enableDebugLogs)
+                {
+                    Debug.Log("Build blocked: no action available this turn.", this);
+                }
+                return;
             }
-            return;
-        }
 
-        if (!turns.CanAffordResources(woodCost, stoneCost))
-        {
-            Debug.Log($"Not enough resources. Need Wood {woodCost}, Stone {stoneCost}.");
-            return;
-        }
-
-        if (!turns.TrySpendAction(1))
-        {
-            if (enableDebugLogs)
+            if (!turns.CanAffordResources(woodCost, stoneCost))
             {
-                Debug.Log("Build blocked: TrySpendAction failed.", this);
+                Debug.Log($"Not enough resources. Need Wood {woodCost}, Stone {stoneCost}.");
+                return;
             }
-            return;
-        }
 
-        if (!turns.TrySpendResources(woodCost, stoneCost))
-        {
-            if (enableDebugLogs)
+            if (!turns.TrySpendAction(1))
             {
-                Debug.Log("Build blocked: TrySpendResources failed.", this);
+                if (enableDebugLogs)
+                {
+                    Debug.Log("Build blocked: TrySpendAction failed.", this);
+                }
+                return;
             }
-            return;
+
+            if (!turns.TrySpendResources(woodCost, stoneCost))
+            {
+                if (enableDebugLogs)
+                {
+                    Debug.Log("Build blocked: TrySpendResources failed.", this);
+                }
+                return;
+            }
         }
 
         if (!builtRoads.Add(tileCoordinate))
