@@ -64,9 +64,9 @@ public class WinCondition : MonoBehaviour
 
     private bool TryFindCity(out Vector2Int cityPos)
     {
-        for (int x = 0; x < gridMap.width; x++)
+        for (int x = 0; x < gridMap.Width; x++)
         {
-            for (int y = 0; y < gridMap.height; y++)
+            for (int y = 0; y < gridMap.Height; y++)
             {
                 if (gridMap.tileMap[x, y].tileType == TileType.City)
                 {
@@ -84,9 +84,9 @@ public class WinCondition : MonoBehaviour
     private List<Vector2Int> FindVillages()
     {
         var villages = new List<Vector2Int>();
-        for (int x = 0; x < gridMap.width; x++)
+        for (int x = 0; x < gridMap.Width; x++)
         {
-            for (int y = 0; y < gridMap.height; y++)
+            for (int y = 0; y < gridMap.Height; y++)
             {
                 if (gridMap.tileMap[x, y].tileType == TileType.Village)
                 {
@@ -101,8 +101,8 @@ public class WinCondition : MonoBehaviour
     private Dictionary<Vector2Int, List<Vector2Int>> FindShortestPaths(Vector2Int start, List<Vector2Int> targets)
     {
         var paths = new Dictionary<Vector2Int, List<Vector2Int>>();
-        bool[,] visited = new bool[gridMap.width, gridMap.height];
-        Vector2Int?[,] parent = new Vector2Int?[gridMap.width, gridMap.height];
+        bool[,] visited = new bool[gridMap.Width, gridMap.Height];
+        Vector2Int?[,] parent = new Vector2Int?[gridMap.Width, gridMap.Height];
 
         var queue = new Queue<Vector2Int>();
         queue.Enqueue(start);
@@ -167,7 +167,7 @@ public class WinCondition : MonoBehaviour
 
     private bool IsInBounds(int x, int y)
     {
-        return x >= 0 && y >= 0 && x < gridMap.width && y < gridMap.height;
+        return x >= 0 && y >= 0 && x < gridMap.Width && y < gridMap.Height;
     }
 
     private List<Vector2Int> ReconstructPath(Vector2Int end, Vector2Int?[,] parent)

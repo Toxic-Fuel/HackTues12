@@ -9,10 +9,10 @@ namespace GridGeneration
 {
     public class GridMap : MonoBehaviour
     {
-        [SerializeField] private int width = 20;
-        [SerializeField] private int height = 20;
-        public int Width => width;
-        public int Height => height;
+        [SerializeField] private int Width = 20;
+        [SerializeField] private int Height = 20;
+        public int Width => Width;
+        public int Height => Height;
         [SerializeField] private float spacing, tileSize;
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private Transform playerTransform;
@@ -120,7 +120,7 @@ namespace GridGeneration
                 }
             }
 
-            if (width <= 0 || height <= 0)
+            if (Width <= 0 || Height <= 0)
             {
                 Debug.LogError("GridMap: Width and height must be greater than 0.", this);
                 return;
@@ -148,14 +148,14 @@ namespace GridGeneration
 
             ClearGeneratedTiles();
 
-            tileMap = new GridTile[width, height];
-            gameObjectMap = new GameObject[width, height];
-            protectedTileMap = new bool[width, height];
+            tileMap = new GridTile[Width, Height];
+            gameObjectMap = new GameObject[Width, Height];
+            protectedTileMap = new bool[Width, Height];
 
 
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
-                for (int y = 0; y < height; y++)
+                for (int y = 0; y < Height; y++)
                 {
                     ReplaceTileAt(x, y, landTile);
                 }
@@ -195,7 +195,7 @@ namespace GridGeneration
         private bool GenerateVillageMap(System.Random rng, bool placeCity, List<Vector2Int> existingSettlements, out Vector2Int placedCoordinate)
         {
             placedCoordinate = new Vector2Int(-1, -1);
-            if (rng == null || tileMap == null || gameObjectMap == null || protectedTileMap == null || width <= 0 || height <= 0)
+            if (rng == null || tileMap == null || gameObjectMap == null || protectedTileMap == null || Width <= 0 || Height <= 0)
             {
                 return false;
             }
@@ -349,7 +349,7 @@ namespace GridGeneration
 
         private void ProtectCoordinate(int x, int y)
         {
-            if (x < 0 || y < 0 || x >= width || y >= height)
+            if (x < 0 || y < 0 || x >= Width || y >= Height)
             {
                 return;
             }
@@ -365,9 +365,9 @@ namespace GridGeneration
             }
 
             var availableCoordinates = new List<Vector2Int>();
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
-                for (int y = 0; y < height; y++)
+                for (int y = 0; y < Height; y++)
                 {
                     if (!protectedTileMap[x, y])
                     {
@@ -415,7 +415,7 @@ namespace GridGeneration
 
         public bool IsInsideGrid(int x, int y)
         {
-            return x >= 0 && y >= 0 && x < width && y < height;
+            return x >= 0 && y >= 0 && x < Width && y < Height;
         }
 
         public bool IsInsideGrid(Vector2Int coordinate)
@@ -446,7 +446,7 @@ namespace GridGeneration
         public bool TryWorldToGridCoordinate(Vector3 worldPosition, out Vector2Int coordinate)
         {
             coordinate = new Vector2Int(-1, -1);
-            if (width <= 0 || height <= 0)
+            if (Width <= 0 || Height <= 0)
             {
                 return false;
             }
@@ -554,8 +554,8 @@ namespace GridGeneration
             int maxAttempts = Mathf.Max(1, placementTries);
             for (int i = 0; i < maxAttempts; i++)
             {
-                int candidateX = rng.Next(0, width);
-                int candidateY = rng.Next(0, height);
+                int candidateX = rng.Next(0, Width);
+                int candidateY = rng.Next(0, Height);
                 if (protectedTileMap[candidateX, candidateY])
                 {
                     continue;
@@ -606,11 +606,11 @@ namespace GridGeneration
 
         private bool TryGetRandomUnprotectedCoordinate(System.Random rng, out int x, out int y)
         {
-            int attempts = width * height * 2;
+            int attempts = Width * Height * 2;
             for (int i = 0; i < attempts; i++)
             {
-                int candidateX = rng.Next(0, width);
-                int candidateY = rng.Next(0, height);
+                int candidateX = rng.Next(0, Width);
+                int candidateY = rng.Next(0, Height);
                 if (!protectedTileMap[candidateX, candidateY])
                 {
                     x = candidateX;
@@ -619,9 +619,9 @@ namespace GridGeneration
                 }
             }
 
-            for (int ix = 0; ix < width; ix++)
+            for (int ix = 0; ix < Width; ix++)
             {
-                for (int iy = 0; iy < height; iy++)
+                for (int iy = 0; iy < Height; iy++)
                 {
                     if (!protectedTileMap[ix, iy])
                     {
@@ -654,8 +654,8 @@ namespace GridGeneration
             unchecked
             {
                 int hash = 17;
-                hash = hash * 31 + width;
-                hash = hash * 31 + height;
+                hash = hash * 31 + Width;
+                hash = hash * 31 + Height;
                 hash = hash * 31 + spacing.GetHashCode();
                 hash = hash * 31 + tileSize.GetHashCode();
                 hash = hash * 31 + seed;
