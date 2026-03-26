@@ -180,6 +180,13 @@ public class Turns : MonoBehaviour
         return true;
     }
 
+
+    public void AddPerTurnResources(int woodBonus, int stoneBonus)
+    {
+        woodPerTurn += Mathf.Max(0, woodBonus);
+        stonePerTurn += Mathf.Max(0, stoneBonus);
+    }
+
     public void TriggerWin()
     {
         if (State == TurnState.Win || State == TurnState.Lose)
