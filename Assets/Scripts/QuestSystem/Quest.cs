@@ -8,7 +8,7 @@ namespace QuestSystem
         public string description;
         [SerializeField] private Turns turns;
         [SerializeField] private int rewardWoodPerTurn, rewardStonePerTurn;
-        [SerializeField] private int woodCost, stoneCost;
+        [SerializeField] private int woodCost, stoneCost, turnCost;
 
         private bool _isCompleted;
 
@@ -25,10 +25,13 @@ namespace QuestSystem
                 return false;
             }
 
-            if (!turns.TrySpendResources(woodCost, stoneCost))
+            if (!turns.CanAffordResources(woodCost, stoneCost) || !turns.CanAffordTurns(turnCost))
             {
                 return false;
             }
+
+            turns.TrySpendResources(woodCost, stoneCost);
+            turns.TrySpendTurns(turnCost);
 
             OnQuestComplete();
             return true;

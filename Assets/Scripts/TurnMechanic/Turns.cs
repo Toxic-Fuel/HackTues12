@@ -43,7 +43,7 @@ public class Turns : MonoBehaviour
         set
         {
             _currentTurn = value;
-            resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns);
+            RefreshUI();
         }
     }
 
@@ -76,6 +76,21 @@ public class Turns : MonoBehaviour
         return CurrentWood >= woodCost && CurrentStone >= stoneCost;
     }
 
+    public bool CanAffordTurns(int turnCost)
+    {
+        if (turnCost < 0)
+        {
+            return false;
+        }
+
+        if (State == TurnState.Win || State == TurnState.Lose)
+        {
+            return false;
+        }
+
+        return RemainingTurns >= turnCost;
+    }
+
     public bool TrySpendResources(int woodCost, int stoneCost)
     {
         if (!CanAffordResources(woodCost, stoneCost))
@@ -86,6 +101,29 @@ public class Turns : MonoBehaviour
         CurrentWood -= woodCost;
         CurrentStone -= stoneCost;
         ResourcesGained?.Invoke(this);
+        return true;
+    }
+
+    public bool TrySpendTurns(int turnCost)
+    {
+        if (!CanAffordTurns(turnCost))
+        {
+            return false;
+        }
+
+        if (turnCost == 0)
+        {
+            return true;
+        }
+
+        RemainingTurns -= turnCost;
+        RefreshUI();
+
+        if (RemainingTurns == 0)
+        {
+            SetLoseState();
+        }
+
         return true;
     }
 
@@ -243,6 +281,17 @@ public class Turns : MonoBehaviour
         CurrentWood += Mathf.Max(0, woodPerTurn);
         CurrentStone += Mathf.Max(0, stonePerTurn);
         ResourcesGained?.Invoke(this);
+        RefreshUI();
+    }
+
+    private void RefreshUI()
+    {
+        if (resourceTurnsUI == null)
+        {
+            return;
+        }
+
+        resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns);
     }
 
     private void SetLoseState()
