@@ -8,12 +8,10 @@ public class CameraScroll : MonoBehaviour
     [SerializeField] private float maxDistance = 3f;
 
     private Mouse mouse;
-    private Vector3 targetPosition;
 
     private void OnEnable()
     {
         mouse = Mouse.current;
-        targetPosition = transform.position;
     }
 
     private void Update()
@@ -24,10 +22,13 @@ public class CameraScroll : MonoBehaviour
         float scrollDelta = mouse.scroll.ReadValue().y;
         if (scrollDelta != 0)
         {
-            Vector3 scrollDirection = transform.forward * scrollDelta * scrollSpeed;
+            Vector3 flatForward = transform.forward;
+            flatForward.y = 0;
+            flatForward.Normalize();
+
+            Vector3 scrollDirection = flatForward * scrollDelta * scrollSpeed;
             Vector3 newPosition = transform.position + scrollDirection;
 
-            // Clamp distance along the forward direction from a reference point (e.g., origin or parent)
             Vector3 referencePoint = transform.parent != null ? transform.parent.position : Vector3.zero;
             float distance = Vector3.Distance(newPosition, referencePoint);
             
