@@ -16,7 +16,7 @@ namespace GridGeneration
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
         [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
         [SerializeField, Min(0)] private int minDistance = 1;
-        private GridTile[,] tileMap;
+        public GridTile[,] tileMap { get; private set; }
         private GameObject[,] gameObjectMap;
         private bool[,] protectedTileMap;
         private int placementTries = 1000;
