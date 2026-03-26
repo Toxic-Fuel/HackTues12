@@ -5,10 +5,17 @@ using UnityEngine.InputSystem;
 
 public class TileBuilding : MonoBehaviour
 {
+    private static readonly Vector2Int[] CardinalDirections =
+    {
+        Vector2Int.up,
+        Vector2Int.right,
+        Vector2Int.down,
+        Vector2Int.left
+    };
+
     [Header("References")]
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Turns turns;
-    [SerializeField] private Transform playerTransform;
     [SerializeField] private UnityEngine.Camera mainCamera;
     [SerializeField] private InputActionReference buildAction;
 
@@ -40,6 +47,8 @@ public class TileBuilding : MonoBehaviour
     private Vector3 hoveredBasePosition;
     private Vector2Int hoveredCoordinate = new Vector2Int(-1, -1);
     private readonly HashSet<Vector2Int> builtRoads = new HashSet<Vector2Int>();
+    private readonly HashSet<Vector2Int> cachedConnectedNodes = new HashSet<Vector2Int>();
+    private bool connectedNodesDirty = true;
 
     private void Awake()
     {
@@ -67,7 +76,7 @@ public class TileBuilding : MonoBehaviour
 
     private void Update()
     {
-        if (gridMap == null || turns == null || playerTransform == null || mainCamera == null)
+        if (gridMap == null || turns == null || mainCamera == null)
         {
             return;
         }
@@ -91,7 +100,7 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        if (!allowBuildOnAnyTileForTesting && !IsAdjacentToPlayer(hoveredCoordinate))
+        if (!allowBuildOnAnyTileForTesting && !HasConnectedNeighbor(hoveredCoordinate))
         {
             ClearHoveredTile();
             return;
@@ -205,6 +214,8 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
+        connectedNodesDirty = true;
+
         bool mainTileBuilt = RebuildRoadVisualAt(tileCoordinate);
         if (!mainTileBuilt)
         {
@@ -214,6 +225,7 @@ public class TileBuilding : MonoBehaviour
             }
 
             builtRoads.Remove(tileCoordinate);
+            connectedNodesDirty = true;
             return;
         }
 
@@ -225,24 +237,6 @@ public class TileBuilding : MonoBehaviour
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
 
         ClearHoveredTile();
-    }
-
-    private bool IsAdjacentToPlayer(Vector2Int targetCoordinate)
-    {
-        if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
-        {
-            return false;
-        }
-
-        int dx = Mathf.Abs(targetCoordinate.x - playerCoordinate.x);
-        int dy = Mathf.Abs(targetCoordinate.y - playerCoordinate.y);
-
-        return (dx <= 1 && dy <= 1) && (dx != 0 || dy != 0);
-    }
-
-    private bool TryGetPlayerCoordinate(out Vector2Int playerCoordinate)
-    {
-        return gridMap.TryWorldToGridCoordinate(playerTransform.position, out playerCoordinate);
     }
 
     private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
@@ -263,29 +257,6 @@ public class TileBuilding : MonoBehaviour
 
         Vector3 worldPoint = ray.GetPoint(enterDistance);
         return gridMap.TryWorldToGridCoordinate(worldPoint, out coordinate);
-    }
-
-    private static bool TryParseTileCoordinate(string tileName, out Vector2Int coordinate)
-    {
-        coordinate = new Vector2Int(-1, -1);
-        if (string.IsNullOrEmpty(tileName))
-        {
-            return false;
-        }
-
-        string[] parts = tileName.Split('_');
-        if (parts.Length != 3 || parts[0] != "Tile")
-        {
-            return false;
-        }
-
-        if (!int.TryParse(parts[1], out int x) || !int.TryParse(parts[2], out int y))
-        {
-            return false;
-        }
-
-        coordinate = new Vector2Int(x, y);
-        return true;
     }
 
     private bool CanBuildOnTile(Vector2Int coordinate, out int woodCost, out int stoneCost)
@@ -357,7 +328,7 @@ public class TileBuilding : MonoBehaviour
         int connections = (north ? 1 : 0) + (east ? 1 : 0) + (south ? 1 : 0) + (west ? 1 : 0);
 
         float yRotation;
-        GameObject prefabToUse = ResolveRoadPrefab(north, east, south, west, connections, coordinate, out yRotation);
+        GameObject prefabToUse = ResolveRoadPrefab(north, east, south, west, connections, out yRotation);
 
         if (prefabToUse == null)
         {
@@ -383,7 +354,7 @@ public class TileBuilding : MonoBehaviour
         return true;
     }
 
-    private GameObject ResolveRoadPrefab(bool north, bool east, bool south, bool west, int connections, Vector2Int coordinate, out float yRotation)
+    private GameObject ResolveRoadPrefab(bool north, bool east, bool south, bool west, int connections, out float yRotation)
     {
         yRotation = 0f;
 
@@ -454,48 +425,86 @@ public class TileBuilding : MonoBehaviour
             return (east || west) ? roadHorizontalPrefab : roadVerticalPrefab;
         }
 
-        if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
-        {
-            yRotation = 0f;
-            return roadVerticalPrefab;
-        }
-
-        int dx = coordinate.x - playerCoordinate.x;
-        int dy = coordinate.y - playerCoordinate.y;
-        bool isLeftOrRight = Mathf.Abs(dx) > Mathf.Abs(dy);
         yRotation = 0f;
-        return isLeftOrRight ? roadHorizontalPrefab : roadVerticalPrefab;
+        return roadVerticalPrefab;
     }
 
     private bool IsRoadConnectionNode(Vector2Int coordinate)
+    {
+        HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
+        return connectedNodes.Contains(coordinate);
+    }
+
+    private bool HasConnectedNeighbor(Vector2Int coordinate)
+    {
+        HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
+        for (int i = 0; i < CardinalDirections.Length; i++)
+        {
+            if (connectedNodes.Contains(coordinate + CardinalDirections[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private HashSet<Vector2Int> GetConnectedRoadNetworkNodes()
+    {
+        if (!connectedNodesDirty)
+        {
+            return cachedConnectedNodes;
+        }
+
+        cachedConnectedNodes.Clear();
+        var queue = new Queue<Vector2Int>();
+
+        for (int x = 0; x < gridMap.Width; x++)
+        {
+            for (int y = 0; y < gridMap.Height; y++)
+            {
+                GridTile tile = gridMap.GetTileAt(x, y);
+                if (tile != null && tile.tileType == TileType.City)
+                {
+                    Vector2Int cityCoordinate = new Vector2Int(x, y);
+                    cachedConnectedNodes.Add(cityCoordinate);
+                    queue.Enqueue(cityCoordinate);
+                }
+            }
+        }
+
+        while (queue.Count > 0)
+        {
+            Vector2Int current = queue.Dequeue();
+            for (int i = 0; i < CardinalDirections.Length; i++)
+            {
+                Vector2Int next = current + CardinalDirections[i];
+                if (cachedConnectedNodes.Contains(next) || !gridMap.IsInsideGrid(next))
+                {
+                    continue;
+                }
+
+                if (IsRoadNetworkTraversable(next))
+                {
+                    cachedConnectedNodes.Add(next);
+                    queue.Enqueue(next);
+                }
+            }
+        }
+
+        connectedNodesDirty = false;
+        return cachedConnectedNodes;
+    }
+
+    private bool IsRoadNetworkTraversable(Vector2Int coordinate)
     {
         if (builtRoads.Contains(coordinate))
         {
             return true;
         }
 
-        if (IsPlayerTileCoordinate(coordinate))
-        {
-            return true;
-        }
-
-        if (!gridMap.IsInsideGrid(coordinate))
-        {
-            return false;
-        }
-
         GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
         return tile != null && (tile.tileType == TileType.City || tile.tileType == TileType.Village);
-    }
-
-    private bool IsPlayerTileCoordinate(Vector2Int coordinate)
-    {
-        if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
-        {
-            return false;
-        }
-
-        return playerCoordinate == coordinate;
     }
 
     private void SetHoveredTile(GameObject tileObject, Vector2Int coordinate)
