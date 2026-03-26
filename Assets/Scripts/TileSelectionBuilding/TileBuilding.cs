@@ -85,14 +85,7 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
-        if (!Physics.Raycast(ray, out RaycastHit hit))
-        {
-            ClearHoveredTile();
-            return;
-        }
-
-        if (!TryGetTileCoordinateFromHit(hit.collider.transform, out Vector2Int hoveredCoordinate))
+        if (!TryGetMouseGridCoordinate(out Vector2Int hoveredCoordinate))
         {
             ClearHoveredTile();
             return;
@@ -110,7 +103,14 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        SetHoveredTile(hit.collider.gameObject, hoveredCoordinate);
+        GameObject tileObject = gridMap.GetTileInstanceAt(hoveredCoordinate.x, hoveredCoordinate.y);
+        if (tileObject == null)
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        SetHoveredTile(tileObject, hoveredCoordinate);
     }
 
     private void TryBuildOnClick()
@@ -242,36 +242,50 @@ public class TileBuilding : MonoBehaviour
 
     private bool TryGetPlayerCoordinate(out Vector2Int playerCoordinate)
     {
-        playerCoordinate = new Vector2Int(-1, -1);
-
-        Vector3 rayStart = playerTransform.position + Vector3.up * 2f;
-        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 8f))
-        {
-            if (TryGetTileCoordinateFromHit(hit.collider.transform, out playerCoordinate))
-            {
-                return true;
-            }
-        }
-
         return gridMap.TryWorldToGridCoordinate(playerTransform.position, out playerCoordinate);
     }
 
-    private bool TryGetTileCoordinateFromHit(Transform hitTransform, out Vector2Int coordinate)
+    private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
     {
         coordinate = new Vector2Int(-1, -1);
-        Transform current = hitTransform;
-
-        while (current != null)
+        if (mainCamera == null || Mouse.current == null)
         {
-            if (TryParseTileCoordinate(current.name, out coordinate))
-            {
-                return true;
-            }
-
-            current = current.parent;
+            return false;
         }
 
-        return false;
+        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, gridMap.transform.position.y, 0f));
+
+        if (!groundPlane.Raycast(ray, out float enterDistance))
+        {
+            return false;
+        }
+
+        Vector3 worldPoint = ray.GetPoint(enterDistance);
+        return gridMap.TryWorldToGridCoordinate(worldPoint, out coordinate);
+    }
+
+    private static bool TryParseTileCoordinate(string tileName, out Vector2Int coordinate)
+    {
+        coordinate = new Vector2Int(-1, -1);
+        if (string.IsNullOrEmpty(tileName))
+        {
+            return false;
+        }
+
+        string[] parts = tileName.Split('_');
+        if (parts.Length != 3 || parts[0] != "Tile")
+        {
+            return false;
+        }
+
+        if (!int.TryParse(parts[1], out int x) || !int.TryParse(parts[2], out int y))
+        {
+            return false;
+        }
+
+        coordinate = new Vector2Int(x, y);
+        return true;
     }
 
     private bool CanBuildOnTile(Vector2Int coordinate, out int woodCost, out int stoneCost)
@@ -482,29 +496,6 @@ public class TileBuilding : MonoBehaviour
         }
 
         return playerCoordinate == coordinate;
-    }
-
-    private static bool TryParseTileCoordinate(string tileName, out Vector2Int coordinate)
-    {
-        coordinate = new Vector2Int(-1, -1);
-        if (string.IsNullOrEmpty(tileName))
-        {
-            return false;
-        }
-
-        string[] parts = tileName.Split('_');
-        if (parts.Length != 3 || parts[0] != "Tile")
-        {
-            return false;
-        }
-
-        if (!int.TryParse(parts[1], out int x) || !int.TryParse(parts[2], out int y))
-        {
-            return false;
-        }
-
-        coordinate = new Vector2Int(x, y);
-        return true;
     }
 
     private void SetHoveredTile(GameObject tileObject, Vector2Int coordinate)
