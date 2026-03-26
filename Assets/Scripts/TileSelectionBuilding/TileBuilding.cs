@@ -19,6 +19,10 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private GameObject roadNorthWestPrefab;
     [SerializeField] private GameObject roadSouthEastPrefab;
     [SerializeField] private GameObject roadSouthWestPrefab;
+    [SerializeField] private GameObject roadTcrossNWEPrefab;
+    [SerializeField] private GameObject roadTcrossNESPrefab;
+    [SerializeField] private GameObject roadTcrossNWSPrefab;
+    [SerializeField] private GameObject roadTcrossSEWPrefab;
     [SerializeField] private GameObject roadCrossPrefab;
 
     [Header("Hover Animation")]
@@ -27,6 +31,9 @@ public class TileBuilding : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool enableDebugLogs = true;
+
+    [Header("Testing")]
+    [SerializeField] private bool allowBuildOnAnyTileForTesting = true;
 
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
@@ -90,7 +97,7 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        if (!IsAdjacentToPlayer(hoveredCoordinate))
+        if (!allowBuildOnAnyTileForTesting && !IsAdjacentToPlayer(hoveredCoordinate))
         {
             ClearHoveredTile();
             return;
@@ -194,7 +201,18 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        RebuildRoadVisualAt(tileCoordinate);
+        bool mainTileBuilt = RebuildRoadVisualAt(tileCoordinate);
+        if (!mainTileBuilt)
+        {
+            if (enableDebugLogs)
+            {
+                Debug.LogError($"Build failed: could not place road visual at ({tileCoordinate.x}, {tileCoordinate.y}).", this);
+            }
+
+            builtRoads.Remove(tileCoordinate);
+            return;
+        }
+
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.up);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.right);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.down);
@@ -295,22 +313,22 @@ public class TileBuilding : MonoBehaviour
         }
     }
 
-    private void RebuildRoadVisualAt(Vector2Int coordinate)
+    private bool RebuildRoadVisualAt(Vector2Int coordinate)
     {
         if (!builtRoads.Contains(coordinate))
         {
-            return;
+            return false;
         }
 
         if (!gridMap.IsInsideGrid(coordinate))
         {
-            return;
+            return false;
         }
 
         GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
         if (tileInstance == null)
         {
-            return;
+            return false;
         }
 
         bool north = IsRoadConnectionNode(coordinate + Vector2Int.up);
@@ -320,18 +338,19 @@ public class TileBuilding : MonoBehaviour
 
         int connections = (north ? 1 : 0) + (east ? 1 : 0) + (south ? 1 : 0) + (west ? 1 : 0);
 
-        GameObject prefabToUse = ResolveRoadPrefab(north, east, south, west, connections, coordinate);
+        float yRotation;
+        GameObject prefabToUse = ResolveRoadPrefab(north, east, south, west, connections, coordinate, out yRotation);
 
         if (prefabToUse == null)
         {
-            Debug.LogWarning("TileBuilding: Missing road prefab assignment for the current connection pattern.", this);
-            return;
+            Debug.LogWarning($"TileBuilding: Missing road prefab assignment for pattern at ({coordinate.x}, {coordinate.y}) [N:{north} E:{east} S:{south} W:{west}]", this);
+            return false;
         }
 
-        if (!gridMap.TryReplaceTileVisualAt(coordinate.x, coordinate.y, prefabToUse, Quaternion.identity))
+        if (!gridMap.TryReplaceTileVisualAt(coordinate.x, coordinate.y, prefabToUse, Quaternion.Euler(0f, yRotation, 0f)))
         {
             Debug.LogWarning($"TileBuilding: Failed to replace tile visual at ({coordinate.x}, {coordinate.y}).", this);
-            return;
+            return false;
         }
 
         if (hoveredCoordinate == coordinate)
@@ -342,58 +361,91 @@ public class TileBuilding : MonoBehaviour
                 hoveredBasePosition = hoveredTile.transform.localPosition;
             }
         }
+
+        return true;
     }
 
-    private GameObject ResolveRoadPrefab(bool north, bool east, bool south, bool west, int connections, Vector2Int coordinate)
+    private GameObject ResolveRoadPrefab(bool north, bool east, bool south, bool west, int connections, Vector2Int coordinate, out float yRotation)
     {
-        if (connections >= 3)
+        yRotation = 0f;
+
+        if (connections == 4)
         {
             return roadCrossPrefab != null ? roadCrossPrefab : roadVerticalPrefab;
+        }
+
+        if (connections == 3)
+        {
+            if (north && west && east)
+            {
+                return roadTcrossNWEPrefab != null ? roadTcrossNWEPrefab : roadCrossPrefab;
+            }
+
+            if (north && east && south)
+            {
+                return roadTcrossNESPrefab != null ? roadTcrossNESPrefab : roadCrossPrefab;
+            }
+
+            if (north && west && south)
+            {
+                return roadTcrossNWSPrefab != null ? roadTcrossNWSPrefab : roadCrossPrefab;
+            }
+
+            return roadTcrossSEWPrefab != null ? roadTcrossSEWPrefab : roadCrossPrefab;
         }
 
         if (connections == 2)
         {
             if (north && south)
             {
+                yRotation = 0f;
                 return roadVerticalPrefab;
             }
 
             if (east && west)
             {
+                yRotation = 0f;
                 return roadHorizontalPrefab;
             }
 
             if (north && east)
             {
+                yRotation = 0f;
                 return roadNorthEastPrefab;
             }
 
             if (north && west)
             {
+                yRotation = 0f;
                 return roadNorthWestPrefab;
             }
 
             if (south && east)
             {
+                yRotation = 0f;
                 return roadSouthEastPrefab;
             }
 
+            yRotation = 0f;
             return roadSouthWestPrefab;
         }
 
         if (connections == 1)
         {
+            yRotation = 0f;
             return (east || west) ? roadHorizontalPrefab : roadVerticalPrefab;
         }
 
         if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
         {
+            yRotation = 0f;
             return roadVerticalPrefab;
         }
 
         int dx = coordinate.x - playerCoordinate.x;
         int dy = coordinate.y - playerCoordinate.y;
         bool isLeftOrRight = Mathf.Abs(dx) > Mathf.Abs(dy);
+        yRotation = 0f;
         return isLeftOrRight ? roadHorizontalPrefab : roadVerticalPrefab;
     }
 
