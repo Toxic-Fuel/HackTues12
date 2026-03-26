@@ -1,17 +1,19 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class Camera : MonoBehaviour
+public class CameraLeftClick : MonoBehaviour
 {
     [SerializeField] private float dragSensitivity = 0.2f;
+    [SerializeField] private float dragSmoothing = 0.05f;
     [SerializeField] private float maxX = 50f;
     [SerializeField] private float maxZ = 50f;
     [SerializeField] private float minX = -50f;
     [SerializeField] private float minZ = -50f;
 
-    private Vector2 lastMousePosition;
     private bool isDragging = false;
     private Mouse mouse;
+    private Vector2 smoothedDelta;
+    private Vector2 deltaVelocity;
 
     private void OnEnable()
     {
@@ -31,20 +33,20 @@ public class Camera : MonoBehaviour
         if (mouse.leftButton.wasPressedThisFrame)
         {
             isDragging = true;
-            lastMousePosition = mouse.position.ReadValue();
         }
 
         if (mouse.leftButton.wasReleasedThisFrame)
         {
             isDragging = false;
+            smoothedDelta = Vector2.zero;
+            deltaVelocity = Vector2.zero;
         }
 
         if (isDragging)
         {
-            Vector2 currentMousePosition = mouse.position.ReadValue();
-            Vector2 mouseDelta = currentMousePosition - lastMousePosition;
-            MoveCamera(mouseDelta);
-            lastMousePosition = currentMousePosition;
+            Vector2 rawDelta = mouse.delta.ReadValue();
+            smoothedDelta = Vector2.SmoothDamp(smoothedDelta, rawDelta, ref deltaVelocity, dragSmoothing);
+            MoveCamera(smoothedDelta);
         }
     }
 
@@ -53,8 +55,6 @@ public class Camera : MonoBehaviour
         float moveX = -mouseDelta.x * dragSensitivity;
         float moveZ = -mouseDelta.y * dragSensitivity;
 
-        Vector3 movementDirection = new Vector3(moveX, 0, moveZ);
-        
         Vector3 forward = transform.forward;
         Vector3 right = transform.right;
         

@@ -3,11 +3,13 @@ using UnityEngine.InputSystem;
 
 public class CameraRightClick : MonoBehaviour
 {
-    [SerializeField] private float rotationSpeed = 1f;
+    [SerializeField] private float rotationSpeed = 0.2f;
+    [SerializeField] private float rotationSmoothing = 0.05f;
 
-    private Vector2 lastMousePosition;
     private bool isDragging = false;
     private Mouse mouse;
+    private Vector2 smoothedDelta;
+    private Vector2 deltaVelocity;
 
     private void OnEnable()
     {
@@ -22,20 +24,20 @@ public class CameraRightClick : MonoBehaviour
         if (mouse.rightButton.wasPressedThisFrame)
         {
             isDragging = true;
-            lastMousePosition = mouse.position.ReadValue();
         }
 
         if (mouse.rightButton.wasReleasedThisFrame)
         {
             isDragging = false;
+            smoothedDelta = Vector2.zero;
+            deltaVelocity = Vector2.zero;
         }
 
         if (isDragging)
         {
-            Vector2 currentMousePosition = mouse.position.ReadValue();
-            Vector2 mouseDelta = currentMousePosition - lastMousePosition;
-            RotateObject(mouseDelta);
-            lastMousePosition = currentMousePosition;
+            Vector2 rawDelta = mouse.delta.ReadValue();
+            smoothedDelta = Vector2.SmoothDamp(smoothedDelta, rawDelta, ref deltaVelocity, rotationSmoothing);
+            RotateObject(smoothedDelta);
         }
     }
 
