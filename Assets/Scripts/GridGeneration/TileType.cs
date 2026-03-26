@@ -7,6 +7,8 @@ namespace GridGeneration
         Village,
         City,
         Production,
-        Road
+        Road,
+        Mountain,
+        River
     }
 }
