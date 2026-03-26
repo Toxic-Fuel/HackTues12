@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class Turns : MonoBehaviour
 {
@@ -26,6 +27,9 @@ public class Turns : MonoBehaviour
     [SerializeField] private int startingWood = 0;
     [SerializeField] private int startingStone = 0;
 
+    [Header("Input")]
+    [SerializeField] private InputActionReference endTurnAction;
+
     public int CurrentTurn { get; private set; }
     public int RemainingTurns { get; private set; }
     public int ActionsRemaining { get; private set; }
@@ -43,12 +47,44 @@ public class Turns : MonoBehaviour
     public event Action<Turns> EncounterLost;
     public event Action<Turns> ResourcesGained;
 
+    private void OnEnable()
+    {
+        if (endTurnAction == null || endTurnAction.action == null)
+        {
+            return;
+        }
+
+        endTurnAction.action.Enable();
+        endTurnAction.action.performed += OnEndTurnPerformed;
+    }
+
+    private void OnDisable()
+    {
+        if (endTurnAction == null || endTurnAction.action == null)
+        {
+            return;
+        }
+
+        endTurnAction.action.performed -= OnEndTurnPerformed;
+        endTurnAction.action.Disable();
+    }
+
     private void Awake()
     {
         if (autoStartOnAwake)
         {
             StartEncounter();
         }
+    }
+
+    private void OnEndTurnPerformed(InputAction.CallbackContext context)
+    {
+        if (State != TurnState.PlayerTurn)
+        {
+            return;
+        }
+        Debug.Log($"Current wood: {CurrentWood}, Current stone: {CurrentStone}, Actions remaining: {ActionsRemaining}");
+        EndTurn();
     }
 
     public void StartEncounter()
