@@ -5,6 +5,7 @@ namespace GridGeneration
         Land,
         Obstacle,
         Village,
+        City,
         Production
     }
 }

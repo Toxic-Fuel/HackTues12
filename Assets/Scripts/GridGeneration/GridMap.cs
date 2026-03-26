@@ -13,6 +13,9 @@ namespace GridGeneration
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private int seed;
         private GridTile[,] tileMap;
+        private GameObject[,] gameObjectMap;
+        private bool[,] protectedTileMap;
+        private const int maxVillages = 4, minVillages = 1;
 
         // Cache the inspected values so OnValidate regenerates only on relevant changes.
         private int _lastConfigHash;
@@ -23,7 +26,7 @@ namespace GridGeneration
 
         private void Start()
         {
-            GenerateMap();
+            GenerateLandMap();
         }
 
         private void OnValidate()
@@ -68,11 +71,11 @@ namespace GridGeneration
                 return;
             }
 
-            GenerateMap();
+            GenerateLandMap();
         }
 #endif
 
-        private void GenerateMap()
+        private void GenerateLandMap()
         {
             if (tiles == null || tiles.Length == 0 || tiles[0] == null)
             {
@@ -110,6 +113,9 @@ namespace GridGeneration
             ClearGeneratedTiles();
 
             tileMap = new GridTile[width, height];
+            gameObjectMap = new GameObject[width, height];
+            protectedTileMap = new bool[width, height];
+            
 
             float step = tileSize + spacing;
             for (int x = 0; x < width; x++)
@@ -127,8 +133,101 @@ namespace GridGeneration
                     GameObject tileInstance = Instantiate(tileMap[x, y].tilePrefab, transform);
                     tileInstance.transform.localPosition = localPos;
                     tileInstance.name = $"Tile_{x}_{y}";
+                    gameObjectMap[x, y] = tileInstance;
                 }
             }
+            var rng = new System.Random(seed);
+            GenerateVillageMap(rng, true);
+            var villageCount = rng.Next(minVillages, maxVillages + 1);
+            for (int villageIndex = 0; villageIndex < villageCount; ++villageIndex)
+            {
+                GenerateVillageMap(rng, false);
+            }
+        }
+
+        private void GenerateVillageMap(System.Random rng, bool placeCity)
+        {
+            if (rng == null || tileMap == null || gameObjectMap == null || protectedTileMap == null || width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            GridTile protectedTile = null;
+            var tileType = placeCity ? TileType.City : TileType.Village;
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                if (tiles[i] != null && tiles[i].tileType == tileType)
+                {
+                    protectedTile = tiles[i];
+                    break;
+                }
+            }
+
+            if (protectedTile == null)
+            {
+                Debug.LogWarning($"GridMap: No tile with type {tileType} found. Skipping placement.", this);
+                return;
+            }
+
+            if (!TryGetRandomUnprotectedCoordinate(rng, out int randomX, out int randomY))
+            {
+                Debug.LogWarning("GridMap: No available tile left for city/village placement.", this);
+                return;
+            }
+            
+            // Remove the previously spawned object at this coordinate before replacing it.
+            GameObject oldTileInstance = gameObjectMap[randomX, randomY];
+            if (oldTileInstance != null)
+            {
+                if (Application.isPlaying) Destroy(oldTileInstance);
+                else DestroyImmediate(oldTileInstance);
+            }
+            
+            tileMap[randomX, randomY] = protectedTile;
+            
+
+
+            //Place city tile prefab
+            Vector3 localPos = new Vector3(randomX * (tileSize + spacing), 0f, randomY * (tileSize + spacing));
+            GameObject cityInstance = Instantiate(protectedTile.tilePrefab, transform);
+            cityInstance.transform.localPosition = localPos;
+            cityInstance.name = $"Tile_{randomX}_{randomY}";
+            gameObjectMap[randomX, randomY] = cityInstance;
+            protectedTileMap[randomX, randomY] = true;
+            //Debug.Log("GridMap: City/Village placement complete.", this);
+        }
+
+        private bool TryGetRandomUnprotectedCoordinate(System.Random rng, out int x, out int y)
+        {
+            int attempts = width * height * 2;
+            for (int i = 0; i < attempts; i++)
+            {
+                int candidateX = rng.Next(0, width);
+                int candidateY = rng.Next(0, height);
+                if (!protectedTileMap[candidateX, candidateY])
+                {
+                    x = candidateX;
+                    y = candidateY;
+                    return true;
+                }
+            }
+
+            for (int ix = 0; ix < width; ix++)
+            {
+                for (int iy = 0; iy < height; iy++)
+                {
+                    if (!protectedTileMap[ix, iy])
+                    {
+                        x = ix;
+                        y = iy;
+                        return true;
+                    }
+                }
+            }
+
+            x = -1;
+            y = -1;
+            return false;
         }
 
         private int GetConfigHash()
@@ -176,6 +275,10 @@ namespace GridGeneration
                 }
 #endif
             }
+
+            gameObjectMap = null;
+            tileMap = null;
+            protectedTileMap = null;
         }
     }
 }
