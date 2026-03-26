@@ -30,11 +30,38 @@ public class Turns : MonoBehaviour
     [Header("Input")]
     [SerializeField] private InputActionReference endTurnAction;
 
-    public int CurrentTurn { get; private set; }
+    [Header("UI")]
+    [SerializeField] private ResourceTurnsUI resourceTurnsUI;
+
+    private int _currentTurn;
+    private int _currentWood;
+    private int _currentStone;
+
+    private int CurrentTurn
+    {
+        get => _currentTurn;
+        set
+        {
+            _currentTurn = value;
+            resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns);
+        }
+    }
+
     public int RemainingTurns { get; private set; }
     public int ActionsRemaining { get; private set; }
-    public int CurrentWood { get; private set; }
-    public int CurrentStone { get; private set; }
+
+    public int CurrentWood
+    {
+        get => _currentWood;
+        private set => _currentWood = value;
+    }
+
+    public int CurrentStone
+    {
+        get => _currentStone;
+        private set => _currentStone = value;
+    }
+
     public TurnState State { get; private set; } = TurnState.NotStarted;
 
     public bool CanTakeAction => State == TurnState.PlayerTurn && ActionsRemaining > 0;
