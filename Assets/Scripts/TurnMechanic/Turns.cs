@@ -39,6 +39,29 @@ public class Turns : MonoBehaviour
 
     public bool CanTakeAction => State == TurnState.PlayerTurn && ActionsRemaining > 0;
 
+    public bool CanAffordResources(int woodCost, int stoneCost)
+    {
+        if (woodCost < 0 || stoneCost < 0)
+        {
+            return false;
+        }
+
+        return CurrentWood >= woodCost && CurrentStone >= stoneCost;
+    }
+
+    public bool TrySpendResources(int woodCost, int stoneCost)
+    {
+        if (!CanAffordResources(woodCost, stoneCost))
+        {
+            return false;
+        }
+
+        CurrentWood -= woodCost;
+        CurrentStone -= stoneCost;
+        ResourcesGained?.Invoke(this);
+        return true;
+    }
+
     public event Action<Turns> EncounterStarted;
     public event Action<Turns> TurnStarted;
     public event Action<Turns> ActionSpent;

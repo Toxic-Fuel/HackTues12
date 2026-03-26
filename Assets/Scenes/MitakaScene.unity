@@ -465,6 +465,8 @@ GameObject:
   m_Component:
   - component: {fileID: 834051918}
   - component: {fileID: 834051919}
+  - component: {fileID: 834051921}
+  - component: {fileID: 834051920}
   m_Layer: 0
   m_Name: Camera Object
   m_TagString: Untagged
@@ -505,6 +507,36 @@ MonoBehaviour:
   maxZ: 50
   minX: -50
   minZ: -50
+--- !u!114 &834051920
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 834051917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08248fe031f9d0340a3250f86fd33a6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraWASD
+  movementSpeed: 10
+  maxX: 50
+  maxZ: 50
+  minX: -50
+  minZ: -50
+--- !u!114 &834051921
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 834051917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82c7463da17f4ba48b38391e93bda138, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraRightClick
+  rotationSpeed: 1
 --- !u!1 &1144771137
 GameObject:
   m_ObjectHideFlags: 0

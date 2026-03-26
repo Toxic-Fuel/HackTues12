@@ -9,8 +9,8 @@ namespace GridGeneration
 {
     public class GridMap : MonoBehaviour
     {
-        public int width { get; private set; }
-        public int height { get; private set; }
+        [field: SerializeField] public int width { get; private set; }
+        [field: SerializeField] public int height { get; private set; }
         [SerializeField] private float spacing, tileSize;
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private int seed;
@@ -147,7 +147,7 @@ namespace GridGeneration
             tileMap = new GridTile[width, height];
             gameObjectMap = new GameObject[width, height];
             protectedTileMap = new bool[width, height];
-            
+
 
             for (int x = 0; x < width; x++)
             {
@@ -386,6 +386,81 @@ namespace GridGeneration
             return obstacleTiles[obstacleIndex];
         }
 
+        public bool IsInsideGrid(int x, int y)
+        {
+            return x >= 0 && y >= 0 && x < width && y < height;
+        }
+
+        public bool IsInsideGrid(Vector2Int coordinate)
+        {
+            return IsInsideGrid(coordinate.x, coordinate.y);
+        }
+
+        public GridTile GetTileAt(int x, int y)
+        {
+            if (!IsInsideGrid(x, y) || tileMap == null)
+            {
+                return null;
+            }
+
+            return tileMap[x, y];
+        }
+
+        public GameObject GetTileInstanceAt(int x, int y)
+        {
+            if (!IsInsideGrid(x, y) || gameObjectMap == null)
+            {
+                return null;
+            }
+
+            return gameObjectMap[x, y];
+        }
+
+        public bool TryWorldToGridCoordinate(Vector3 worldPosition, out Vector2Int coordinate)
+        {
+            coordinate = new Vector2Int(-1, -1);
+            if (width <= 0 || height <= 0)
+            {
+                return false;
+            }
+
+            float step = tileSize + spacing;
+            if (step <= 0f)
+            {
+                return false;
+            }
+
+            Vector3 localPos = transform.InverseTransformPoint(worldPosition);
+            int x = Mathf.RoundToInt(localPos.x / step);
+            int y = Mathf.RoundToInt(localPos.z / step);
+
+            if (!IsInsideGrid(x, y))
+            {
+                return false;
+            }
+
+            coordinate = new Vector2Int(x, y);
+            return true;
+        }
+
+        public bool TryBuildRoadAt(int x, int y)
+        {
+            if (!IsInsideGrid(x, y))
+            {
+                return false;
+            }
+
+            GridTile roadTile = FindFirstTileByType(TileType.Road);
+            if (roadTile == null)
+            {
+                Debug.LogError("GridMap: No tile with type Road found.", this);
+                return false;
+            }
+
+            ReplaceTileAt(x, y, roadTile);
+            return true;
+        }
+
         private List<GridTile> FindTilesByType(TileType tileType)
         {
             var matchingTiles = new List<GridTile>();
@@ -405,7 +480,7 @@ namespace GridGeneration
             return matchingTiles;
         }
 
-        private GridTile FindFirstTileByType(TileType tileType)
+        public GridTile FindFirstTileByType(TileType tileType)
         {
             if (tiles == null)
             {
