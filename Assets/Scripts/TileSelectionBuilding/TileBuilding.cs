@@ -1,4 +1,5 @@
 using GridGeneration;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -9,19 +10,50 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private Turns turns;
     [SerializeField] private Transform playerTransform;
     [SerializeField] private UnityEngine.Camera mainCamera;
+    [SerializeField] private InputActionReference buildAction;
+
+    [Header("Road Prefabs")]
+    [SerializeField] private GameObject roadVerticalPrefab;
+    [SerializeField] private GameObject roadHorizontalPrefab;
+    [SerializeField] private GameObject roadNorthEastPrefab;
+    [SerializeField] private GameObject roadNorthWestPrefab;
+    [SerializeField] private GameObject roadSouthEastPrefab;
+    [SerializeField] private GameObject roadSouthWestPrefab;
+    [SerializeField] private GameObject roadCrossPrefab;
 
     [Header("Hover Animation")]
     [SerializeField] private float hoverLiftHeight = 0.2f;
     [SerializeField] private float hoverAnimationSpeed = 8f;
 
+    [Header("Debug")]
+    [SerializeField] private bool enableDebugLogs = true;
+
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
+    private Vector2Int hoveredCoordinate = new Vector2Int(-1, -1);
+    private readonly HashSet<Vector2Int> builtRoads = new HashSet<Vector2Int>();
 
     private void Awake()
     {
         if (mainCamera == null)
         {
             mainCamera = UnityEngine.Camera.main;
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (buildAction != null && buildAction.action != null)
+        {
+            buildAction.action.Enable();
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (buildAction != null && buildAction.action != null)
+        {
+            buildAction.action.Disable();
         }
     }
 
@@ -70,39 +102,62 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        SetHoveredTile(hit.collider.gameObject);
+        SetHoveredTile(hit.collider.gameObject, hoveredCoordinate);
     }
 
     private void TryBuildOnClick()
     {
-        if (hoveredTile == null || Mouse.current == null)
+        if (hoveredTile == null)
         {
             return;
         }
 
-        if (!Mouse.current.leftButton.wasPressedThisFrame)
+        bool buildPressed = false;
+        if (buildAction != null && buildAction.action != null)
+        {
+            buildPressed = buildAction.action.WasPressedThisFrame();
+        }
+        else if (Mouse.current != null)
+        {
+            buildPressed = Mouse.current.leftButton.wasPressedThisFrame;
+        }
+
+        if (!buildPressed)
         {
             return;
         }
 
-        if (!TryParseTileCoordinate(hoveredTile.name, out Vector2Int tileCoordinate))
+        if (hoveredCoordinate.x < 0 || hoveredCoordinate.y < 0)
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log("Build blocked: no valid hovered coordinate resolved.", this);
+            }
             return;
         }
 
-        if (gridMap.FindFirstTileByType(TileType.Road) == null)
+        Vector2Int tileCoordinate = hoveredCoordinate;
+
+        if (enableDebugLogs)
         {
-            Debug.LogWarning("TileBuilding: Missing a tile of type Road in GridMap tiles.", this);
-            return;
+            Debug.Log($"Build input pressed on ({tileCoordinate.x}, {tileCoordinate.y}).", this);
         }
 
         if (!CanBuildOnTile(tileCoordinate, out int woodCost, out int stoneCost))
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log($"Build blocked: tile ({tileCoordinate.x}, {tileCoordinate.y}) is not buildable.", this);
+            }
             return;
         }
 
         if (!turns.CanTakeAction)
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log("Build blocked: no action available this turn.", this);
+            }
             return;
         }
 
@@ -114,18 +169,36 @@ public class TileBuilding : MonoBehaviour
 
         if (!turns.TrySpendAction(1))
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log("Build blocked: TrySpendAction failed.", this);
+            }
             return;
         }
 
         if (!turns.TrySpendResources(woodCost, stoneCost))
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log("Build blocked: TrySpendResources failed.", this);
+            }
             return;
         }
 
-        if (!gridMap.TryBuildRoadAt(tileCoordinate.x, tileCoordinate.y))
+        if (!builtRoads.Add(tileCoordinate))
         {
+            if (enableDebugLogs)
+            {
+                Debug.Log($"Build blocked: road already exists at ({tileCoordinate.x}, {tileCoordinate.y}).", this);
+            }
             return;
         }
+
+        RebuildRoadVisualAt(tileCoordinate);
+        RebuildRoadVisualAt(tileCoordinate + Vector2Int.up);
+        RebuildRoadVisualAt(tileCoordinate + Vector2Int.right);
+        RebuildRoadVisualAt(tileCoordinate + Vector2Int.down);
+        RebuildRoadVisualAt(tileCoordinate + Vector2Int.left);
 
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
 
@@ -184,6 +257,11 @@ public class TileBuilding : MonoBehaviour
         woodCost = 0;
         stoneCost = 0;
 
+        if (builtRoads.Contains(coordinate))
+        {
+            return false;
+        }
+
         GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
         if (tile == null)
         {
@@ -217,6 +295,139 @@ public class TileBuilding : MonoBehaviour
         }
     }
 
+    private void RebuildRoadVisualAt(Vector2Int coordinate)
+    {
+        if (!builtRoads.Contains(coordinate))
+        {
+            return;
+        }
+
+        if (!gridMap.IsInsideGrid(coordinate))
+        {
+            return;
+        }
+
+        GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (tileInstance == null)
+        {
+            return;
+        }
+
+        bool north = IsRoadConnectionNode(coordinate + Vector2Int.up);
+        bool east = IsRoadConnectionNode(coordinate + Vector2Int.right);
+        bool south = IsRoadConnectionNode(coordinate + Vector2Int.down);
+        bool west = IsRoadConnectionNode(coordinate + Vector2Int.left);
+
+        int connections = (north ? 1 : 0) + (east ? 1 : 0) + (south ? 1 : 0) + (west ? 1 : 0);
+
+        GameObject prefabToUse = ResolveRoadPrefab(north, east, south, west, connections, coordinate);
+
+        if (prefabToUse == null)
+        {
+            Debug.LogWarning("TileBuilding: Missing road prefab assignment for the current connection pattern.", this);
+            return;
+        }
+
+        if (!gridMap.TryReplaceTileVisualAt(coordinate.x, coordinate.y, prefabToUse, Quaternion.identity))
+        {
+            Debug.LogWarning($"TileBuilding: Failed to replace tile visual at ({coordinate.x}, {coordinate.y}).", this);
+            return;
+        }
+
+        if (hoveredCoordinate == coordinate)
+        {
+            hoveredTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+            if (hoveredTile != null)
+            {
+                hoveredBasePosition = hoveredTile.transform.localPosition;
+            }
+        }
+    }
+
+    private GameObject ResolveRoadPrefab(bool north, bool east, bool south, bool west, int connections, Vector2Int coordinate)
+    {
+        if (connections >= 3)
+        {
+            return roadCrossPrefab != null ? roadCrossPrefab : roadVerticalPrefab;
+        }
+
+        if (connections == 2)
+        {
+            if (north && south)
+            {
+                return roadVerticalPrefab;
+            }
+
+            if (east && west)
+            {
+                return roadHorizontalPrefab;
+            }
+
+            if (north && east)
+            {
+                return roadNorthEastPrefab;
+            }
+
+            if (north && west)
+            {
+                return roadNorthWestPrefab;
+            }
+
+            if (south && east)
+            {
+                return roadSouthEastPrefab;
+            }
+
+            return roadSouthWestPrefab;
+        }
+
+        if (connections == 1)
+        {
+            return (east || west) ? roadHorizontalPrefab : roadVerticalPrefab;
+        }
+
+        if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
+        {
+            return roadVerticalPrefab;
+        }
+
+        int dx = coordinate.x - playerCoordinate.x;
+        int dy = coordinate.y - playerCoordinate.y;
+        bool isLeftOrRight = Mathf.Abs(dx) > Mathf.Abs(dy);
+        return isLeftOrRight ? roadHorizontalPrefab : roadVerticalPrefab;
+    }
+
+    private bool IsRoadConnectionNode(Vector2Int coordinate)
+    {
+        if (builtRoads.Contains(coordinate))
+        {
+            return true;
+        }
+
+        if (IsPlayerTileCoordinate(coordinate))
+        {
+            return true;
+        }
+
+        if (!gridMap.IsInsideGrid(coordinate))
+        {
+            return false;
+        }
+
+        GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        return tile != null && tile.tileType == TileType.City;
+    }
+
+    private bool IsPlayerTileCoordinate(Vector2Int coordinate)
+    {
+        if (!TryGetPlayerCoordinate(out Vector2Int playerCoordinate))
+        {
+            return false;
+        }
+
+        return playerCoordinate == coordinate;
+    }
+
     private static bool TryParseTileCoordinate(string tileName, out Vector2Int coordinate)
     {
         coordinate = new Vector2Int(-1, -1);
@@ -240,7 +451,7 @@ public class TileBuilding : MonoBehaviour
         return true;
     }
 
-    private void SetHoveredTile(GameObject tileObject)
+    private void SetHoveredTile(GameObject tileObject, Vector2Int coordinate)
     {
         if (hoveredTile == tileObject)
         {
@@ -254,9 +465,9 @@ public class TileBuilding : MonoBehaviour
 
         hoveredTile = tileObject;
         hoveredBasePosition = hoveredTile.transform.localPosition;
+        hoveredCoordinate = coordinate;
 
-        if (TryParseTileCoordinate(hoveredTile.name, out Vector2Int coordinate)
-            && CanBuildOnTile(coordinate, out int woodCost, out int stoneCost))
+        if (CanBuildOnTile(coordinate, out int woodCost, out int stoneCost) && enableDebugLogs)
         {
             Debug.Log($"Hover tile ({coordinate.x}, {coordinate.y}) | Build cost: W{woodCost} S{stoneCost}");
         }
@@ -269,6 +480,8 @@ public class TileBuilding : MonoBehaviour
             hoveredTile.transform.localPosition = hoveredBasePosition;
             hoveredTile = null;
         }
+
+        hoveredCoordinate = new Vector2Int(-1, -1);
     }
 
     private void AnimateTiles()

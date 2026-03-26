@@ -15,6 +15,8 @@ namespace GridGeneration
         public int Height => height;
         [SerializeField] private float spacing, tileSize;
         [SerializeField] private GridTile[] tiles;
+        [SerializeField] private Transform playerTransform;
+        [SerializeField] private float playerSpawnYOffset = 0f;
         [SerializeField] private int seed;
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
         [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
@@ -165,6 +167,7 @@ namespace GridGeneration
             if (GenerateVillageMap(rng, true, settlementNodes, out Vector2Int cityCoordinate))
             {
                 settlementNodes.Add(cityCoordinate);
+                PlacePlayerAtCity(cityCoordinate);
             }
 
             int villageCount = rng.Next(minVillages, maxVillages + 1);
@@ -222,6 +225,28 @@ namespace GridGeneration
             protectedTileMap[randomX, randomY] = true;
             placedCoordinate = new Vector2Int(randomX, randomY);
             return true;
+        }
+
+        private void PlacePlayerAtCity(Vector2Int cityCoordinate)
+        {
+            if (playerTransform == null)
+            {
+                return;
+            }
+
+            if (gameObjectMap == null || !IsInsideGrid(cityCoordinate))
+            {
+                return;
+            }
+
+            GameObject cityTile = gameObjectMap[cityCoordinate.x, cityCoordinate.y];
+            if (cityTile == null)
+            {
+                return;
+            }
+
+            Vector3 cityCenter = cityTile.transform.position;
+            playerTransform.position = new Vector3(cityCenter.x, cityCenter.y + playerSpawnYOffset, cityCenter.z);
         }
 
         private void ReservePathsForSettlements(System.Random rng, List<Vector2Int> settlementNodes)
@@ -460,6 +485,30 @@ namespace GridGeneration
             }
 
             ReplaceTileAt(x, y, roadTile);
+            return true;
+        }
+
+        public bool TryReplaceTileVisualAt(int x, int y, GameObject tilePrefab, Quaternion localRotation)
+        {
+            if (!IsInsideGrid(x, y) || tilePrefab == null || gameObjectMap == null)
+            {
+                return false;
+            }
+
+            GameObject oldTileInstance = gameObjectMap[x, y];
+            if (oldTileInstance != null)
+            {
+                if (Application.isPlaying) Destroy(oldTileInstance);
+                else DestroyImmediate(oldTileInstance);
+            }
+
+            float step = tileSize + spacing;
+            Vector3 localPos = new Vector3(x * step, 0f, y * step);
+            GameObject tileInstance = Instantiate(tilePrefab, transform);
+            tileInstance.transform.localPosition = localPos;
+            tileInstance.name = $"Tile_{x}_{y}";
+            gameObjectMap[x, y] = tileInstance;
+
             return true;
         }
 
