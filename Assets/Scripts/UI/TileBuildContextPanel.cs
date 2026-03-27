@@ -20,6 +20,7 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 1.15f, 0f);
     [SerializeField] private Vector2 canvasOffset = new Vector2(0f, 36f);
     [SerializeField] private float extraVerticalPixels = 120f;
+    [SerializeField] private float screenEdgePadding = 8f;
 
     [Header("Tile Name Rules")]
     [SerializeField] private string[] woodValleyKeywords = { "wood valley", "wood" };
@@ -162,8 +163,29 @@ public class TileBuildContextPanel : MonoBehaviour
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPoint, uiCamera, out Vector2 localPoint))
         {
             float verticalOffset = Mathf.Abs(canvasOffset.y) + Mathf.Max(0f, extraVerticalPixels);
-            panelRoot.anchoredPosition = localPoint + new Vector2(canvasOffset.x, verticalOffset);
+            Vector2 target = localPoint + new Vector2(canvasOffset.x, verticalOffset);
+            panelRoot.anchoredPosition = ClampPanelToCanvas(target, canvasRect);
         }
+    }
+
+    private Vector2 ClampPanelToCanvas(Vector2 targetPosition, RectTransform canvasRect)
+    {
+        Vector2 panelSize = new Vector2(
+            panelRoot.rect.width * Mathf.Abs(panelRoot.localScale.x),
+            panelRoot.rect.height * Mathf.Abs(panelRoot.localScale.y)
+        );
+        Vector2 pivot = panelRoot.pivot;
+        Rect rect = canvasRect.rect;
+
+        float minX = rect.xMin + panelSize.x * pivot.x + screenEdgePadding;
+        float maxX = rect.xMax - panelSize.x * (1f - pivot.x) - screenEdgePadding;
+        float minY = rect.yMin + panelSize.y * pivot.y + screenEdgePadding;
+        float maxY = rect.yMax - panelSize.y * (1f - pivot.y) - screenEdgePadding;
+
+        return new Vector2(
+            Mathf.Clamp(targetPosition.x, minX, maxX),
+            Mathf.Clamp(targetPosition.y, minY, maxY)
+        );
     }
 
     private bool IsTileMatchingAnyKeyword(GridTile tile, string[] keywords)
