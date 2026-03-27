@@ -46,13 +46,67 @@ public class TileBuilding : MonoBehaviour
     [Header("Effects")]
     [SerializeField] GameObject buildEffectPrefab;
     [SerializeField] private float yEffectOffset = 0.5f;
-    
+
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
     private Vector2Int hoveredCoordinate = new Vector2Int(-1, -1);
     private readonly HashSet<Vector2Int> builtRoads = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> cachedConnectedNodes = new HashSet<Vector2Int>();
     private bool connectedNodesDirty = true;
+
+    public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
+    {
+        coordinate = hoveredCoordinate;
+        return hoveredCoordinate.x >= 0 && hoveredCoordinate.y >= 0;
+    }
+
+    public bool TryGetHoveredWorldPosition(out Vector3 worldPosition)
+    {
+        worldPosition = Vector3.zero;
+        if (hoveredCoordinate.x < 0 || hoveredCoordinate.y < 0)
+        {
+            return false;
+        }
+
+        GameObject tileObject = gridMap.GetTileInstanceAt(hoveredCoordinate.x, hoveredCoordinate.y);
+        if (tileObject == null)
+        {
+            return false;
+        }
+
+        worldPosition = tileObject.transform.position;
+        return true;
+    }
+
+    public bool IsRoadAlreadyBuilt(Vector2Int coordinate)
+    {
+        return builtRoads.Contains(coordinate);
+    }
+
+    public bool CanBuildRoadAt(Vector2Int coordinate)
+    {
+        if (!gridMap.IsInsideGrid(coordinate))
+        {
+            return false;
+        }
+
+        if (!CanBuildOnTile(coordinate, out _, out _))
+        {
+            return false;
+        }
+
+        if (!allowBuildOnAnyTileForTesting && !HasConnectedNeighbor(coordinate))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryBuildRoadAt(Vector2Int coordinate)
+    {
+        return TryBuildRoadInternal(coordinate);
+    }
 
     private void Awake()
     {
@@ -158,19 +212,28 @@ public class TileBuilding : MonoBehaviour
         }
 
         Vector2Int tileCoordinate = hoveredCoordinate;
+        TryBuildRoadInternal(tileCoordinate);
+    }
 
+    private bool TryBuildRoadInternal(Vector2Int tileCoordinate)
+    {
         if (enableDebugLogs)
         {
             Debug.Log($"Build input pressed on ({tileCoordinate.x}, {tileCoordinate.y}).", this);
         }
 
-        if (!CanBuildOnTile(tileCoordinate, out int woodCost, out int stoneCost))
+        if (!CanBuildRoadAt(tileCoordinate))
         {
             if (enableDebugLogs)
             {
                 Debug.Log($"Build blocked: tile ({tileCoordinate.x}, {tileCoordinate.y}) is not buildable.", this);
             }
-            return;
+            return false;
+        }
+
+        if (!CanBuildOnTile(tileCoordinate, out int woodCost, out int stoneCost))
+        {
+            return false;
         }
 
         if (!bypassTurnAndResourceChecksForTesting)
@@ -181,13 +244,13 @@ public class TileBuilding : MonoBehaviour
                 {
                     Debug.Log("Build blocked: no action available this turn.", this);
                 }
-                return;
+                return false;
             }
 
             if (!turns.CanAffordResources(woodCost, stoneCost))
             {
                 Debug.Log($"Not enough resources. Need Wood {woodCost}, Stone {stoneCost}.");
-                return;
+                return false;
             }
 
             if (!turns.TrySpendAction(1))
@@ -196,7 +259,7 @@ public class TileBuilding : MonoBehaviour
                 {
                     Debug.Log("Build blocked: TrySpendAction failed.", this);
                 }
-                return;
+                return false;
             }
 
             if (!turns.TrySpendResources(woodCost, stoneCost))
@@ -205,7 +268,7 @@ public class TileBuilding : MonoBehaviour
                 {
                     Debug.Log("Build blocked: TrySpendResources failed.", this);
                 }
-                return;
+                return false;
             }
         }
 
@@ -215,7 +278,7 @@ public class TileBuilding : MonoBehaviour
             {
                 Debug.Log($"Build blocked: road already exists at ({tileCoordinate.x}, {tileCoordinate.y}).", this);
             }
-            return;
+            return false;
         }
 
         connectedNodesDirty = true;
@@ -230,7 +293,7 @@ public class TileBuilding : MonoBehaviour
 
             builtRoads.Remove(tileCoordinate);
             connectedNodesDirty = true;
-            return;
+            return false;
         }
 
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.up);
@@ -239,10 +302,9 @@ public class TileBuilding : MonoBehaviour
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.left);
 
         SpawnBuildEffectAt(tileCoordinate);
-
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
-
         ClearHoveredTile();
+        return true;
     }
 
     private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
