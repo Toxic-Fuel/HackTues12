@@ -60,6 +60,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 90
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: a85d12840ab1f6244aa60bc11c26caae, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b533fa3456f00e048bf255a6b34edd42, type: 2}
+    - target: {fileID: -7511558181221131132, guid: a85d12840ab1f6244aa60bc11c26caae, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 34dcf3536bf3cec45a17816f485c8b57, type: 2}
     - target: {fileID: 919132149155446097, guid: a85d12840ab1f6244aa60bc11c26caae, type: 3}
       propertyPath: m_Name
       value: RoadHorizontal

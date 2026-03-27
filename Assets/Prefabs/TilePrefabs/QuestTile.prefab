@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 3629980514948177780}
   - component: {fileID: 2475578592251368004}
   - component: {fileID: 7164729606609312637}
+  - component: {fileID: 5903282030187641925}
   m_Layer: 0
   m_Name: QuestTile
   m_TagString: Untagged
@@ -106,6 +107,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RotateOnSpawn
   angleStep: 90
   axis: 1
+--- !u!114 &5903282030187641925
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9041468413012352844}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e07640ff8c2d1a04fac4e080454e5628, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestSystem.Quest
+  questName: Wood for a shed
+  description: Hey traveler! Help me build a shed by giving me <b> 2 Wood </b> and
+    I'll supply you with <b> 1 Stone /t </b> in return
+  turns: {fileID: 0}
+  rewardWoodPerTurn: 0
+  rewardStonePerTurn: 1
+  woodCost: 2
+  stoneCost: 0
+  turnCost: 0
 --- !u!1001 &5667169635388603645
 PrefabInstance:
   m_ObjectHideFlags: 0

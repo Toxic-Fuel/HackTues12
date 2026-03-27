@@ -7,21 +7,29 @@ public class CameraRightClick : MonoBehaviour
     [SerializeField] private float rotationSmoothing = 0.05f;
     [SerializeField] private float minVerticalRotation = 0f;
     [SerializeField] private float maxVerticalRotation = 89.9f;
+    [SerializeField] private SelectTile selectTile;
 
     private bool isDragging = false;
     private Mouse mouse;
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
-    private float currentVerticalRotation = 0f;
-    [SerializeField] private SelectTile selectTile;
+    private float currentVerticalRotation;
+    private float currentHorizontalRotation;
 
     private void OnEnable()
     {
         mouse = Mouse.current;
+
         if (selectTile == null)
         {
             selectTile = FindAnyObjectByType<SelectTile>();
         }
+
+        Vector3 euler = transform.localEulerAngles;
+        currentVerticalRotation = Mathf.Clamp(NormalizeAngle(euler.x), minVerticalRotation, maxVerticalRotation);
+        currentHorizontalRotation = euler.y;
+
+        transform.localRotation = Quaternion.Euler(currentVerticalRotation, currentHorizontalRotation, 0f);
     }
 
     private void Update()
@@ -62,9 +70,19 @@ public class CameraRightClick : MonoBehaviour
         float rotationY = mouseDelta.x * rotationSpeed;
         float rotationX = -mouseDelta.y * rotationSpeed;
 
-        transform.Rotate(0, rotationY, 0, Space.World);
-
+        currentHorizontalRotation += rotationY;
         currentVerticalRotation = Mathf.Clamp(currentVerticalRotation + rotationX, minVerticalRotation, maxVerticalRotation);
-        transform.localRotation = Quaternion.Euler(currentVerticalRotation, transform.localRotation.eulerAngles.y, 0);
+
+        transform.localRotation = Quaternion.Euler(currentVerticalRotation, currentHorizontalRotation, 0f);
+    }
+
+    private float NormalizeAngle(float angle)
+    {
+        if (angle > 180f)
+        {
+            angle -= 360f;
+        }
+
+        return angle;
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using TMPro;
+using QuestSystem;
 
 public class TileBuildContextPanel : MonoBehaviour
 {
@@ -26,12 +27,18 @@ public class TileBuildContextPanel : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private RectTransform panelRoot;
+    [SerializeField] private GameObject questPanelRoot;
     [SerializeField] private Button buildRoadButton;
     [SerializeField] private Button buildSawmillButton;
     [SerializeField] private Button buildStoneMineButton;
     [SerializeField] private Button confirmBuildButton;
     [SerializeField] private TMP_Text woodCostText;
     [SerializeField] private TMP_Text stoneCostText;
+
+    [Header("Quest UI")]
+    [SerializeField] private TMP_Text questUIText;
+    [SerializeField] private Button acceptButton;
+    [SerializeField] private Button declineButton;
 
     [Header("Button Tint")]
     [SerializeField] private Color normalButtonColor = Color.white;
@@ -67,6 +74,7 @@ public class TileBuildContextPanel : MonoBehaviour
     private bool canBuildRoadOption;
     private bool canBuildSawmillOption;
     private bool canBuildStoneMineOption;
+    private Quest currentQuest;
     private readonly HashSet<Vector2Int> placedCollectorBuildings = new HashSet<Vector2Int>();
 
     private void Awake()
@@ -121,12 +129,18 @@ public class TileBuildContextPanel : MonoBehaviour
             confirmBuildButton.onClick.AddListener(TryConfirmSelectedBuild);
         }
 
-        if (panelRoot != null)
+        if (acceptButton != null)
         {
-            panelRoot.anchorMin = new Vector2(0.5f, 0.5f);
-            panelRoot.anchorMax = new Vector2(0.5f, 0.5f);
-            panelRoot.pivot = new Vector2(0.5f, 0.5f);
+            acceptButton.onClick.AddListener(OnAcceptQuestPressed);
         }
+
+        if (declineButton != null)
+        {
+            declineButton.onClick.AddListener(OnDeclineQuestPressed);
+        }
+
+        ConfigurePanelRect(panelRoot);
+        ConfigurePanelRect(GetQuestPanelRect());
 
         if (panelRoot != null && panelRoot.gameObject == gameObject)
         {
@@ -139,6 +153,7 @@ public class TileBuildContextPanel : MonoBehaviour
         }
 
         SetPanelVisible(false);
+        SetQuestPanelVisible(false);
     }
 
     private void OnEnable()
@@ -162,6 +177,7 @@ public class TileBuildContextPanel : MonoBehaviour
         if (tileBuilding == null || gridMap == null || panelRoot == null)
         {
             SetPanelVisible(false);
+            SetQuestPanelVisible(false);
             return;
         }
 
@@ -169,9 +185,11 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             lastCoordinate = new Vector2Int(-1, -1);
             selectedOption = BuildOption.None;
+            currentQuest = null;
             UpdateSelectionVisuals();
             UpdateCostTexts(0, 0);
             SetPanelVisible(false);
+            SetQuestPanelVisible(false);
             return;
         }
 
@@ -182,9 +200,31 @@ public class TileBuildContextPanel : MonoBehaviour
         if (tile == null || tileInstance == null)
         {
             lastCoordinate = new Vector2Int(-1, -1);
+            currentQuest = null;
             SetPanelVisible(false);
+            SetQuestPanelVisible(false);
             return;
         }
+
+        if (tile.tileType == TileType.Quest)
+        {
+            SetPanelVisible(false);
+            SetQuestPanelVisible(true);
+
+            RectTransform questRect = GetQuestPanelRect();
+            if (questRect != null)
+            {
+                ConfigurePanelRect(questRect);
+                Canvas.ForceUpdateCanvases();
+                UpdatePanelPositionAtSelection(tileInstance.transform.position, questRect);
+            }
+
+            UpdateQuestPanelContent(tileInstance);
+            return;
+        }
+
+        currentQuest = null;
+        SetQuestPanelVisible(false);
 
         if (coordinate != lastCoordinate)
         {
@@ -469,15 +509,15 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private void UpdatePanelPositionAtSelection(Vector3 worldPosition)
+    private void UpdatePanelPositionAtSelection(Vector3 worldPosition, RectTransform targetPanel)
     {
-        if (canvas == null || worldCamera == null || panelRoot == null)
+        if (canvas == null || worldCamera == null || targetPanel == null)
         {
             return;
         }
 
         UnityEngine.Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : worldCamera;
-        RectTransform parentRect = panelRoot.parent as RectTransform;
+        RectTransform parentRect = targetPanel.parent as RectTransform;
         if (parentRect == null)
         {
             return;
@@ -487,45 +527,62 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPoint, uiCamera, out Vector2 localPoint))
         {
-            Vector2 panelSize = GetPanelSizeInParentSpace();
+            Vector2 panelSize = GetPanelSizeInParentSpace(targetPanel);
             float offsetY = Mathf.Abs(spawnOffsetY);
-            float topPart = panelSize.y * (1f - panelRoot.pivot.y);
-            float bottomPart = panelSize.y * panelRoot.pivot.y;
+            float topPart = panelSize.y * (1f - targetPanel.pivot.y);
+            float bottomPart = panelSize.y * targetPanel.pivot.y;
 
             float aboveY = localPoint.y + selectedTileClearancePixels + bottomPart + offsetY;
             Vector2 spawnAbove = new Vector2(localPoint.x, aboveY);
-            Vector2 clampedAbove = ClampToParent(spawnAbove, parentRect);
+            Vector2 clampedAbove = ClampToParent(spawnAbove, parentRect, targetPanel);
             bool aboveKeepsTileVisible = (clampedAbove.y - bottomPart) >= (localPoint.y + selectedTileClearancePixels);
 
             if (aboveKeepsTileVisible)
             {
-                panelRoot.anchoredPosition = clampedAbove;
+                targetPanel.anchoredPosition = clampedAbove;
                 return;
             }
 
             float belowY = localPoint.y - selectedTileClearancePixels - topPart - offsetY;
             Vector2 spawnBelow = new Vector2(localPoint.x, belowY);
-            Vector2 clampedBelow = ClampToParent(spawnBelow, parentRect);
+            Vector2 clampedBelow = ClampToParent(spawnBelow, parentRect, targetPanel);
             bool belowKeepsTileVisible = (clampedBelow.y + topPart) <= (localPoint.y - selectedTileClearancePixels);
 
             if (belowKeepsTileVisible)
             {
-                panelRoot.anchoredPosition = clampedBelow;
+                targetPanel.anchoredPosition = clampedBelow;
                 return;
             }
 
             // If both sides are constrained by edges, keep the side with more visual clearance.
             float aboveGap = (clampedAbove.y - bottomPart) - localPoint.y;
             float belowGap = localPoint.y - (clampedBelow.y + topPart);
-            panelRoot.anchoredPosition = aboveGap >= belowGap ? clampedAbove : clampedBelow;
+            targetPanel.anchoredPosition = aboveGap >= belowGap ? clampedAbove : clampedBelow;
         }
     }
 
-    private Vector2 GetPanelSizeInParentSpace()
+    private void UpdatePanelPositionAtSelection(Vector3 worldPosition)
+    {
+        UpdatePanelPositionAtSelection(worldPosition, panelRoot);
+    }
+
+    private void ConfigurePanelRect(RectTransform targetPanel)
+    {
+        if (targetPanel == null)
+        {
+            return;
+        }
+
+        targetPanel.anchorMin = new Vector2(0.5f, 0.5f);
+        targetPanel.anchorMax = new Vector2(0.5f, 0.5f);
+        targetPanel.pivot = new Vector2(0.5f, 0.5f);
+    }
+
+    private Vector2 GetPanelSizeInParentSpace(RectTransform targetPanel)
     {
         Vector2 panelSize = new Vector2(
-            panelRoot.rect.width * Mathf.Abs(panelRoot.lossyScale.x),
-            panelRoot.rect.height * Mathf.Abs(panelRoot.lossyScale.y));
+            targetPanel.rect.width * Mathf.Abs(targetPanel.lossyScale.x),
+            targetPanel.rect.height * Mathf.Abs(targetPanel.lossyScale.y));
 
         float canvasScale = canvas != null ? canvas.scaleFactor : 1f;
         if (canvasScale > 0.0001f)
@@ -536,11 +593,11 @@ public class TileBuildContextPanel : MonoBehaviour
         return panelSize;
     }
 
-    private Vector2 ClampToParent(Vector2 targetPosition, RectTransform parentRect)
+    private Vector2 ClampToParent(Vector2 targetPosition, RectTransform parentRect, RectTransform targetPanel)
     {
-        Vector2 panelSize = GetPanelSizeInParentSpace();
+        Vector2 panelSize = GetPanelSizeInParentSpace(targetPanel);
 
-        Vector2 pivot = panelRoot.pivot;
+        Vector2 pivot = targetPanel.pivot;
         Rect parent = parentRect.rect;
 
         float minX = parent.xMin + panelSize.x * pivot.x + screenEdgePadding;
@@ -554,6 +611,61 @@ public class TileBuildContextPanel : MonoBehaviour
     }
 
     private static bool HasExactTileName(GridTile tile, string expectedName)
+    {
+        return tile != null
+            && !string.IsNullOrWhiteSpace(expectedName)
+            && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private RectTransform GetQuestPanelRect()
+    {
+        return questPanelRoot != null ? questPanelRoot.GetComponent<RectTransform>() : null;
+    }
+
+    private void UpdateQuestPanelContent(GameObject tileInstance)
+    {
+        currentQuest = tileInstance != null ? tileInstance.GetComponent<Quest>() : null;
+        if (currentQuest != null)
+        {
+            currentQuest.SetTurns(turns);
+        }
+
+        if (questUIText != null)
+        {
+            questUIText.text = currentQuest == null
+                ? string.Empty
+                : (currentQuest.IsCompleted ? "Thanks for your help!" : currentQuest.description);
+        }
+
+        if (acceptButton != null)
+        {
+            acceptButton.interactable = currentQuest != null && turns != null && !currentQuest.IsCompleted;
+        }
+    }
+
+    private void OnAcceptQuestPressed()
+    {
+        if (currentQuest == null)
+        {
+            return;
+        }
+
+        bool completed = currentQuest.PayResources();
+        if (completed && selectTile != null)
+        {
+            selectTile.ClearSelection();
+        }
+    }
+
+    private void OnDeclineQuestPressed()
+    {
+        if (selectTile != null)
+        {
+            selectTile.ClearSelection();
+        }
+    }
+
+    private bool IsTileMatchingAnyKeyword(GridTile tile, string[] keywords)
     {
         return tile != null
             && !string.IsNullOrWhiteSpace(expectedName)
@@ -632,6 +744,19 @@ public class TileBuildContextPanel : MonoBehaviour
         else if (panelRoot.gameObject.activeSelf != visible)
         {
             panelRoot.gameObject.SetActive(visible);
+        }
+    }
+
+    private void SetQuestPanelVisible(bool visible)
+    {
+        if (questPanelRoot == null)
+        {
+            return;
+        }
+
+        if (questPanelRoot.activeSelf != visible)
+        {
+            questPanelRoot.SetActive(visible);
         }
     }
 

@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 3554888300010766992}
   - component: {fileID: 3629980514948177780}
   - component: {fileID: 2475578592251368004}
+  - component: {fileID: 8810649679857549949}
   m_Layer: 0
   m_Name: Obstacle2
   m_TagString: Untagged
@@ -66,7 +67,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -876546973899608171, guid: 8997b2810b57bf44e9d5639f0f2401ad, type: 3}
+  - {fileID: 2100000, guid: 90d091c18213c4343b8c3f977a7d23dd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -90,3 +91,18 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &8810649679857549949
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9041468413012352844}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4361972ae52d3e4c815708dd39916c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Animation.AnimateMoving
+  offsetAxis: {x: 1, y: 0}
+  offsetSpeed: 0.1
+  texturePropertyName: _MainTex

@@ -37,7 +37,7 @@ namespace GridGeneration
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private Transform playerTransform;
         [SerializeField] private float playerSpawnYOffset = 0f;
-        [SerializeField] private int seed;
+        [SerializeField] public int seed;
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
         [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
         [SerializeField, Min(0.001f)] private float landNoiseScale = 0.2f;
@@ -124,7 +124,7 @@ namespace GridGeneration
         }
 #endif
 
-        private void GenerateLandMap()
+        public void GenerateLandMap()
         {
             if (tiles == null || tiles.Length == 0 || tiles[0] == null)
             {
