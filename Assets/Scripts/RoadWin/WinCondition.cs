@@ -1,15 +1,23 @@
 using GridGeneration;
+using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using System.Reflection;
 using UnityEngine;
 
 public class WinCondition : MonoBehaviour
 {
     [SerializeField] private GridMap gridMap;
+    [SerializeField] private Turns turns;
     [SerializeField] private TileType[] walkableTypes = { TileType.City, TileType.Village, TileType.Road };
 
     public GridTile[,] road;
-    public GridTile currentTile;
+    private GridTile currentTile;
+    private bool hasWon;
+
+    private TileBuilding tileBuilding;
+    private HashSet<Vector2Int> builtRoads;
+    private FieldInfo builtRoadsField;
+    private int lastBuiltRoadCount = -1;
 
     private void Awake()
     {
@@ -17,16 +25,101 @@ public class WinCondition : MonoBehaviour
         {
             gridMap = GetComponent<GridMap>();
         }
+
+        if (turns == null)
+        {
+            turns = GetComponent<Turns>();
+        }
+
+        if (gridMap == null)
+        {
+            gridMap = FindObjectOfType<GridMap>();
+        }
+
+        if (turns == null)
+        {
+            turns = FindObjectOfType<Turns>();
+        }
+
+        tileBuilding = FindObjectOfType<TileBuilding>();
     }
 
-    private void Start()
+    private IEnumerator Start()
+    {
+        if (gridMap == null)
+        {
+            Debug.LogError("WinCondition: GridMap reference is missing.", this);
+            yield break;
+        }
+
+        yield return new WaitUntil(() => gridMap.tileMap != null);
+
+        CacheBuiltRoadReference();
+        EvaluateWinCondition();
+    }
+
+    private void Update()
     {
         if (gridMap == null || gridMap.tileMap == null)
         {
-            Debug.LogError("WinCondition: GridMap is missing or not initialized.", this);
             return;
         }
 
+        if (!TryGetBuiltRoadCount(out int currentBuiltRoadCount))
+        {
+            return;
+        }
+
+        if (currentBuiltRoadCount == lastBuiltRoadCount)
+        {
+            return;
+        }
+
+        lastBuiltRoadCount = currentBuiltRoadCount;
+        EvaluateWinCondition();
+    }
+
+    private void CacheBuiltRoadReference()
+    {
+        if (tileBuilding == null)
+        {
+            tileBuilding = FindObjectOfType<TileBuilding>();
+        }
+
+        if (tileBuilding == null)
+        {
+            return;
+        }
+
+        builtRoadsField = typeof(TileBuilding).GetField("builtRoads", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (builtRoadsField == null)
+        {
+            Debug.LogWarning("WinCondition: Could not access TileBuilding.builtRoads.", this);
+            return;
+        }
+
+        builtRoads = builtRoadsField.GetValue(tileBuilding) as HashSet<Vector2Int>;
+    }
+
+    private bool TryGetBuiltRoadCount(out int count)
+    {
+        count = 0;
+
+        if (builtRoads == null)
+        {
+            CacheBuiltRoadReference();
+            if (builtRoads == null)
+            {
+                return false;
+            }
+        }
+
+        count = builtRoads.Count;
+        return true;
+    }
+
+    public void EvaluateWinCondition()
+    {
         if (!TryFindCity(out Vector2Int cityPos))
         {
             Debug.LogError("WinCondition: No city tile found.", this);
@@ -42,17 +135,23 @@ public class WinCondition : MonoBehaviour
 
         Dictionary<Vector2Int, List<Vector2Int>> paths = FindShortestPaths(cityPos, villages);
 
-        Check(paths, villages);
-
-        foreach (KeyValuePair<Vector2Int, List<Vector2Int>> path in paths)
+        bool allConnected = paths.Count == villages.Count;
+        if (allConnected && !hasWon)
         {
-            if (path.Value.Count > 0)
-            {
-                Vector2Int last = path.Value[path.Value.Count - 1];
-                currentTile = gridMap.tileMap[last.x, last.y];
-            }
+            hasWon = true;
 
-            break;
+            if (turns != null)
+            {
+                turns.TriggerWin();
+            }
+            else
+            {
+                Debug.LogError("WinCondition: Turns reference is missing. Cannot trigger win.", this);
+            }
+        }
+        else if (!allConnected)
+        {
+            hasWon = false;
         }
     }
 
@@ -121,7 +220,7 @@ public class WinCondition : MonoBehaviour
                     continue;
                 }
 
-                if (!IsWalkable(gridMap.tileMap[nx, ny].tileType))
+                if (!IsTraversable(nx, ny))
                 {
                     continue;
                 }
@@ -144,6 +243,17 @@ public class WinCondition : MonoBehaviour
         }
 
         return paths;
+    }
+
+    private bool IsTraversable(int x, int y)
+    {
+        TileType tileType = gridMap.tileMap[x, y].tileType;
+        if (IsWalkable(tileType))
+        {
+            return true;
+        }
+
+        return builtRoads != null && builtRoads.Contains(new Vector2Int(x, y));
     }
 
     private bool IsWalkable(TileType tileType)
@@ -177,17 +287,5 @@ public class WinCondition : MonoBehaviour
 
         path.Reverse();
         return path;
-    }
-
-    private void Check(Dictionary<Vector2Int, List<Vector2Int>> paths, List<Vector2Int> villages)
-    {
-        if (paths.Count == villages.Count)
-        {
-            Debug.Log("path found");
-        }
-        else
-        {
-            Debug.LogWarning("WinCondition: No walkable path found.");
-        }
     }
 }
