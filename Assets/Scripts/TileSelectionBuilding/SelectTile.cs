@@ -214,6 +214,11 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        if (hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
+        {
+            return;
+        }
+
         if (coordinate == selectedCoordinate)
         {
             DeselectTile();

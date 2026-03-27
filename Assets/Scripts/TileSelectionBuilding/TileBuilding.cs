@@ -18,6 +18,7 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private Turns turns;
     [SerializeField] private UnityEngine.Camera mainCamera;
     [SerializeField] private SelectTile selectTile;
+    [SerializeField] private TileBuildContextPanel tileBuildContextPanel;
 
     [Header("Road Prefabs")]
     [SerializeField] private GameObject roadVerticalPrefab;
@@ -234,11 +235,12 @@ public class TileBuilding : MonoBehaviour
                 return false;
             }
 
-            if (!turns.TrySpendAction(1))
+            int roadTurnCost = tileBuildContextPanel != null ? tileBuildContextPanel.GetRoadTurnCost() : 1;
+            if (!turns.TrySpendAction(roadTurnCost))
             {
                 if (enableDebugLogs)
                 {
-                    Debug.Log("Build blocked: TrySpendAction failed.", this);
+                    Debug.Log($"Build blocked: TrySpendAction({roadTurnCost}) failed.", this);
                 }
                 return false;
             }
@@ -324,7 +326,7 @@ public class TileBuilding : MonoBehaviour
             return false;
         }
 
-        return TryGetRoadCostByTileName(tile.tileName, out woodCost, out stoneCost);
+        return TryGetRoadCostByTile(tile, out woodCost, out stoneCost);
     }
 
     private bool RebuildRoadVisualAt(Vector2Int coordinate)
@@ -471,7 +473,7 @@ public class TileBuilding : MonoBehaviour
         return connectedNodes.Contains(coordinate);
     }
 
-    private bool HasConnectedNeighbor(Vector2Int coordinate)
+    public bool HasConnectedNeighbor(Vector2Int coordinate)
     {
         HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
         for (int i = 0; i < CardinalDirections.Length; i++)
@@ -590,7 +592,32 @@ public class TileBuilding : MonoBehaviour
 
         return false;
     }
+    private bool TryGetRoadCostByTile(GridTile tile, out int woodCost, out int stoneCost)
+    {
+        if (tileBuildContextPanel != null)
+        {
+            woodCost = tileBuildContextPanel.GetRoadWoodCost();
+            stoneCost = tileBuildContextPanel.GetRoadStoneCost();
+        }
+        else
+        {
+            woodCost = 1;
+            stoneCost = 1;
+        }
 
+        if (tile == null)
+        {
+            return false;
+        }
+
+        string lower = (tile.tileName ?? string.Empty).Trim().ToLowerInvariant();
+        if (lower == "obstacle1" || lower == "obstacle2")
+        {
+            return false;
+        }
+
+        return true;
+    }
     private void SetHoveredTile(GameObject tileObject, Vector2Int coordinate)
     {
         if (hoveredTile == tileObject)
