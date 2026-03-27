@@ -232,8 +232,8 @@ namespace GridGeneration
                 return;
             }
 
-            GridTile questTile = FindFirstTileByType(TileType.Quest);
-            if (questTile == null)
+            List<GridTile> questTiles = FindTilesByType(TileType.Quest);
+            if (questTiles.Count == 0)
             {
                 Debug.LogWarning("GridMap: No tile with type Quest found. Skipping quest placement.", this);
                 return;
@@ -305,6 +305,12 @@ namespace GridGeneration
             int requestedQuestCount = rng.Next(questMin, questMax + 1);
             int placedQuestCount = Mathf.Min(requestedQuestCount, candidateCoordinates.Count);
 
+            // Build a deterministic shuffled pool so quest variants do not repeat
+            // until all available quest variants have been used once.
+            var questPool = new List<GridTile>(questTiles);
+            ShuffleList(questPool, rng);
+            int questPoolIndex = 0;
+
             for (int i = 0; i < placedQuestCount; i++)
             {
                 Vector2Int coordinate = candidateCoordinates[i];
@@ -314,8 +320,30 @@ namespace GridGeneration
                     continue;
                 }
 
+                if (questPoolIndex >= questPool.Count)
+                {
+                    // Not enough different quest tiles for all placements: reshuffle and reuse.
+                    ShuffleList(questPool, rng);
+                    questPoolIndex = 0;
+                }
+
+                GridTile questTile = questPool[questPoolIndex++];
                 ReplaceTileAt(coordinate.x, coordinate.y, questTile);
                 protectedTileMap[coordinate.x, coordinate.y] = true;
+            }
+        }
+
+        private static void ShuffleList<T>(List<T> list, System.Random rng)
+        {
+            if (list == null || rng == null)
+            {
+                return;
+            }
+
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(0, i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
             }
         }
 
