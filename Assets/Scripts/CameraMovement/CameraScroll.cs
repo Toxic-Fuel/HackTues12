@@ -7,6 +7,7 @@ public class CameraScroll : MonoBehaviour
     [SerializeField] private float minDistance = 2f;
     [SerializeField] private float maxDistance = 30f;
     [SerializeField] private float zoomSmoothTime = 0.12f;
+    [SerializeField] private SelectTile selectTile;
 
     private Mouse mouse;
     private Vector3 zoomDirectionLocal;
@@ -17,6 +18,11 @@ public class CameraScroll : MonoBehaviour
     private void OnEnable()
     {
         mouse = Mouse.current;
+
+        if (selectTile == null)
+        {
+            selectTile = FindAnyObjectByType<SelectTile>();
+        }
 
         zoomDirectionLocal = transform.localPosition.sqrMagnitude > 0f
             ? transform.localPosition.normalized
@@ -31,6 +37,12 @@ public class CameraScroll : MonoBehaviour
     {
         if (mouse == null)
             return;
+
+        if (selectTile != null && selectTile.HasSelection)
+        {
+            targetDistance = currentDistance;
+            return;
+        }
 
         float scrollDelta = mouse.scroll.ReadValue().y;
         if (!Mathf.Approximately(scrollDelta, 0f))

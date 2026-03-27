@@ -10,6 +10,7 @@ public class SelectTile : MonoBehaviour
     [SerializeField] private Camera mainCamera;
     [SerializeField] private TileBuilding hoverAnimationSource;
     [SerializeField] private InputActionReference selectAction;
+    [SerializeField] private InputActionReference deselectAction;
 
     [Header("Selection Animation")]
     [SerializeField] private float selectedLiftHeight = 0.2f;
@@ -35,6 +36,11 @@ public class SelectTile : MonoBehaviour
         return coordinate == lastDeselectedCoordinate && Time.frameCount - lastDeselectedFrame <= 1;
     }
 
+    public void ClearSelection()
+    {
+        DeselectTile();
+    }
+
     private void Awake()
     {
         if (mainCamera == null)
@@ -54,6 +60,11 @@ public class SelectTile : MonoBehaviour
         {
             selectAction.action.Enable();
         }
+
+        if (deselectAction != null && deselectAction.action != null)
+        {
+            deselectAction.action.Enable();
+        }
     }
 
     private void Update()
@@ -63,6 +74,7 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        TryDeselectOnInput();
         TryToggleSelectionOnClick();
         AnimateSelectedTile();
     }
@@ -74,7 +86,53 @@ public class SelectTile : MonoBehaviour
             selectAction.action.Disable();
         }
 
+        if (deselectAction != null && deselectAction.action != null)
+        {
+            deselectAction.action.Disable();
+        }
+
         DeselectTile();
+    }
+
+    private void TryDeselectOnInput()
+    {
+        if (!HasSelection)
+        {
+            return;
+        }
+
+        if (IsSelectInputPressedThisFrame())
+        {
+            return;
+        }
+
+        if (IsPointerOverUI())
+        {
+            if (!IsEscapePressedThisFrame())
+            {
+                return;
+            }
+        }
+
+        if (deselectAction != null && deselectAction.action != null && deselectAction.action.WasPressedThisFrame())
+        {
+            DeselectTile();
+        }
+    }
+
+    private bool IsSelectInputPressedThisFrame()
+    {
+        if (selectAction != null && selectAction.action != null)
+        {
+            return selectAction.action.WasPressedThisFrame();
+        }
+
+        return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+    }
+
+    private static bool IsEscapePressedThisFrame()
+    {
+        return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
     }
 
     private void TryToggleSelectionOnClick()

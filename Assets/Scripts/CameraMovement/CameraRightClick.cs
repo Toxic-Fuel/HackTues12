@@ -13,16 +13,29 @@ public class CameraRightClick : MonoBehaviour
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
     private float currentVerticalRotation = 0f;
+    [SerializeField] private SelectTile selectTile;
 
     private void OnEnable()
     {
         mouse = Mouse.current;
+        if (selectTile == null)
+        {
+            selectTile = FindAnyObjectByType<SelectTile>();
+        }
     }
 
     private void Update()
     {
         if (mouse == null)
             return;
+
+        if (selectTile != null && selectTile.HasSelection)
+        {
+            isDragging = false;
+            smoothedDelta = Vector2.zero;
+            deltaVelocity = Vector2.zero;
+            return;
+        }
 
         if (mouse.rightButton.wasPressedThisFrame)
         {

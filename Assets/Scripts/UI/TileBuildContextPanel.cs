@@ -248,7 +248,10 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        tileBuilding.TryBuildRoadAt(currentCoordinate);
+        if (tileBuilding.TryBuildRoadAt(currentCoordinate) && selectTile != null)
+        {
+            selectTile.ClearSelection();
+        }
     }
 
     private void OnBuildSawmillPressed()
