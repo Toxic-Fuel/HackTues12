@@ -43,6 +43,10 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private bool allowBuildOnAnyTileForTesting = true;
     [SerializeField] private bool bypassTurnAndResourceChecksForTesting = true;
 
+    [Header("Effects")]
+    [SerializeField] GameObject buildEffectPrefab;
+    [SerializeField] private float yEffectOffset = 0.5f;
+    
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
     private Vector2Int hoveredCoordinate = new Vector2Int(-1, -1);
@@ -233,6 +237,8 @@ public class TileBuilding : MonoBehaviour
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.right);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.down);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.left);
+
+        SpawnBuildEffectAt(tileCoordinate);
 
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
 
@@ -560,5 +566,22 @@ public class TileBuilding : MonoBehaviour
             Vector3 upTarget = hoveredBasePosition + Vector3.up * hoverLiftHeight;
             hoveredTile.transform.localPosition = Vector3.Lerp(hoveredTile.transform.localPosition, upTarget, t);
         }
+    }
+
+    private void SpawnBuildEffectAt(Vector2Int coordinate)
+    {
+        if (buildEffectPrefab == null)
+        {
+            return;
+        }
+
+        GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (tileInstance == null)
+        {
+            return;
+        }
+
+        Vector3 spawnPosition = tileInstance.transform.position + Vector3.up * yEffectOffset;
+        Instantiate(buildEffectPrefab, spawnPosition, Quaternion.identity);
     }
 }
