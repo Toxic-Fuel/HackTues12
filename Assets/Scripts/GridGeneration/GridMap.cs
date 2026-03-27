@@ -9,6 +9,14 @@ namespace GridGeneration
 {
     public class GridMap : MonoBehaviour
     {
+        private static readonly Vector2Int[] CardinalDirections =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
         [SerializeField] private int width = 20;
         [SerializeField] private int height = 20;
         public int Width => width;
@@ -23,6 +31,8 @@ namespace GridGeneration
         [SerializeField, Min(0.001f)] private float landNoiseScale = 0.2f;
         [SerializeField, Range(0f, 1f)] private float grassDensity = 0.7f;
         [SerializeField, Min(0)] private int minDistance = 1;
+        [SerializeField, Min(0)] private int minQuests = 1;
+        [SerializeField, Min(0)] private int maxQuests = 3;
         public GridTile[,] tileMap { get; private set; }
         private GameObject[,] gameObjectMap;
         private bool[,] protectedTileMap;
@@ -197,8 +207,98 @@ namespace GridGeneration
                 Debug.LogError("GridMap: No villages were placed.", this);
             }
 
+            GenerateQuests(rng);
+
             ReservePathsForSettlements(rng, settlementNodes);
             PlaceObstacles(rng, obstacleTiles);
+        }
+
+        private void GenerateQuests(System.Random rng)
+        {
+            if (rng == null || tileMap == null || protectedTileMap == null)
+            {
+                return;
+            }
+
+            GridTile questTile = FindFirstTileByType(TileType.Quest);
+            if (questTile == null)
+            {
+                Debug.LogWarning("GridMap: No tile with type Quest found. Skipping quest placement.", this);
+                return;
+            }
+
+            var villageCoordinates = new List<Vector2Int>();
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    GridTile tile = tileMap[x, y];
+                    if (tile != null && tile.tileType == TileType.Village)
+                    {
+                        villageCoordinates.Add(new Vector2Int(x, y));
+                    }
+                }
+            }
+
+            if (villageCoordinates.Count == 0)
+            {
+                return;
+            }
+
+            var candidateCoordinates = new List<Vector2Int>();
+            var seenCoordinates = new HashSet<Vector2Int>();
+            for (int i = 0; i < villageCoordinates.Count; i++)
+            {
+                Vector2Int village = villageCoordinates[i];
+                for (int directionIndex = 0; directionIndex < CardinalDirections.Length; directionIndex++)
+                {
+                    Vector2Int candidate = village + CardinalDirections[directionIndex];
+                    if (!IsInsideGrid(candidate))
+                    {
+                        continue;
+                    }
+
+                    if (protectedTileMap[candidate.x, candidate.y])
+                    {
+                        continue;
+                    }
+
+                    GridTile candidateTile = tileMap[candidate.x, candidate.y];
+                    if (candidateTile == null || candidateTile.tileType != TileType.Land)
+                    {
+                        continue;
+                    }
+
+                    if (seenCoordinates.Add(candidate))
+                    {
+                        candidateCoordinates.Add(candidate);
+                    }
+                }
+            }
+
+            if (candidateCoordinates.Count == 0)
+            {
+                Debug.LogWarning("GridMap: No valid tile next to a village for quest placement.", this);
+                return;
+            }
+
+            for (int i = candidateCoordinates.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(0, i + 1);
+                (candidateCoordinates[i], candidateCoordinates[j]) = (candidateCoordinates[j], candidateCoordinates[i]);
+            }
+
+            int questMin = Mathf.Min(minQuests, maxQuests);
+            int questMax = Mathf.Max(minQuests, maxQuests);
+            int requestedQuestCount = rng.Next(questMin, questMax + 1);
+            int placedQuestCount = Mathf.Min(requestedQuestCount, candidateCoordinates.Count);
+
+            for (int i = 0; i < placedQuestCount; i++)
+            {
+                Vector2Int coordinate = candidateCoordinates[i];
+                ReplaceTileAt(coordinate.x, coordinate.y, questTile);
+                protectedTileMap[coordinate.x, coordinate.y] = true;
+            }
         }
 
         private bool GenerateVillageMap(System.Random rng, bool placeCity, List<Vector2Int> existingSettlements, out Vector2Int placedCoordinate)
@@ -827,6 +927,8 @@ namespace GridGeneration
                 hash = hash * 31 + landNoiseScale.GetHashCode();
                 hash = hash * 31 + grassDensity.GetHashCode();
                 hash = hash * 31 + minDistance;
+                hash = hash * 31 + minQuests;
+                hash = hash * 31 + maxQuests;
                 hash = hash * 31 + baseTileId;
                 hash = hash * 31 + basePrefabId;
 

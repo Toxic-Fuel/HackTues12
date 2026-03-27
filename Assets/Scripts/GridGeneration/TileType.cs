@@ -11,6 +11,7 @@ namespace GridGeneration
         Mountain,
         River,
         Valley,
-        Forest
+        Forest,
+        Quest
     }
 }
