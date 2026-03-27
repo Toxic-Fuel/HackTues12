@@ -665,13 +665,6 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private bool IsTileMatchingAnyKeyword(GridTile tile, string[] keywords)
-    {
-        return tile != null
-            && !string.IsNullOrWhiteSpace(expectedName)
-            && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
-    }
-
     private static bool IsSettlementTile(GridTile tile)
     {
         return HasExactTileName(tile, "City") || HasExactTileName(tile, "Village");
