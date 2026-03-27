@@ -259,6 +259,7 @@ public class Turns : MonoBehaviour
             return;
         }
 
+        Debug.Log("Encounter won!");
         State = TurnState.Win;
         EncounterWon?.Invoke(this);
     }
