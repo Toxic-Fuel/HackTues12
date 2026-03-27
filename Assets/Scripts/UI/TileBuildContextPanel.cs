@@ -1,21 +1,46 @@
 using GridGeneration;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using TMPro;
 
 public class TileBuildContextPanel : MonoBehaviour
 {
+    private enum BuildOption
+    {
+        None,
+        Road,
+        Sawmill,
+        StoneMine
+    }
+
     [Header("References")]
     [SerializeField] private TileBuilding tileBuilding;
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Canvas canvas;
     [SerializeField] private UnityEngine.Camera worldCamera;
+    [SerializeField] private Turns turns;
+    [SerializeField] private InputActionReference buildConfirmAction;
 
     [Header("UI")]
     [SerializeField] private RectTransform panelRoot;
     [SerializeField] private Button buildRoadButton;
     [SerializeField] private Button buildSawmillButton;
     [SerializeField] private Button buildStoneMineButton;
+    [SerializeField] private Button confirmBuildButton;
+    [SerializeField] private TMP_Text woodCostText;
+    [SerializeField] private TMP_Text stoneCostText;
+
+    [Header("Button Tint")]
+    [SerializeField] private Color normalButtonColor = Color.white;
+    [SerializeField] private Color selectedButtonColor = new Color(0.82f, 0.82f, 0.62f, 1f);
+
+    [Header("Build Costs")]
+    [SerializeField, Min(0)] private int sawmillWoodCost = 2;
+    [SerializeField, Min(0)] private int sawmillStoneCost = 2;
+    [SerializeField, Min(0)] private int stoneMineWoodCost = 5;
+    [SerializeField, Min(0)] private int stoneMineStoneCost = 4;
 
     [Header("Tile Name Rules")]
     [SerializeField] private string[] woodValleyKeywords = { "wood valley", "wood" };
@@ -36,6 +61,10 @@ public class TileBuildContextPanel : MonoBehaviour
     private float hideUntilTime;
     private bool useCanvasGroupVisibility;
     private CanvasGroup panelCanvasGroup;
+    private BuildOption selectedOption = BuildOption.None;
+    private bool canBuildRoadOption;
+    private bool canBuildSawmillOption;
+    private bool canBuildStoneMineOption;
 
     private void Awake()
     {
@@ -54,6 +83,11 @@ public class TileBuildContextPanel : MonoBehaviour
             selectTile = FindAnyObjectByType<SelectTile>();
         }
 
+        if (turns == null)
+        {
+            turns = FindAnyObjectByType<Turns>();
+        }
+
         if (canvas == null)
         {
             canvas = GetComponentInParent<Canvas>();
@@ -66,17 +100,22 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (buildRoadButton != null)
         {
-            buildRoadButton.onClick.AddListener(OnBuildRoadPressed);
+            buildRoadButton.onClick.AddListener(() => OnBuildOptionSelected(BuildOption.Road));
         }
 
         if (buildSawmillButton != null)
         {
-            buildSawmillButton.onClick.AddListener(OnBuildSawmillPressed);
+            buildSawmillButton.onClick.AddListener(() => OnBuildOptionSelected(BuildOption.Sawmill));
         }
 
         if (buildStoneMineButton != null)
         {
-            buildStoneMineButton.onClick.AddListener(OnBuildStoneMinePressed);
+            buildStoneMineButton.onClick.AddListener(() => OnBuildOptionSelected(BuildOption.StoneMine));
+        }
+
+        if (confirmBuildButton != null)
+        {
+            confirmBuildButton.onClick.AddListener(TryConfirmSelectedBuild);
         }
 
         if (panelRoot != null)
@@ -99,6 +138,22 @@ public class TileBuildContextPanel : MonoBehaviour
         SetPanelVisible(false);
     }
 
+    private void OnEnable()
+    {
+        if (buildConfirmAction != null && buildConfirmAction.action != null)
+        {
+            buildConfirmAction.action.Enable();
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (buildConfirmAction != null && buildConfirmAction.action != null)
+        {
+            buildConfirmAction.action.Disable();
+        }
+    }
+
     private void Update()
     {
         if (tileBuilding == null || gridMap == null || panelRoot == null)
@@ -110,6 +165,9 @@ public class TileBuildContextPanel : MonoBehaviour
         if (selectTile == null || !selectTile.HasSelection)
         {
             lastCoordinate = new Vector2Int(-1, -1);
+            selectedOption = BuildOption.None;
+            UpdateSelectionVisuals();
+            UpdateCostTexts(0, 0);
             SetPanelVisible(false);
             return;
         }
@@ -145,10 +203,26 @@ public class TileBuildContextPanel : MonoBehaviour
         bool tileChanged = coordinate != currentCoordinate;
         currentCoordinate = coordinate;
         UpdatePanelButtons(tile, coordinate);
+        EnsureSelectedOptionIsValid(tile, coordinate, tileChanged);
         if (tileChanged)
         {
             UpdatePanelPositionAtSelection(tileInstance.transform.position);
         }
+
+        bool confirmPressed = buildConfirmAction != null
+            && buildConfirmAction.action != null
+            && buildConfirmAction.action.WasPressedThisFrame();
+
+        if (!confirmPressed && Keyboard.current != null)
+        {
+            confirmPressed = Keyboard.current.bKey.wasPressedThisFrame;
+        }
+
+        if (confirmPressed)
+        {
+            TryConfirmSelectedBuild();
+        }
+
         SetPanelVisible(true);
     }
 
@@ -162,6 +236,9 @@ public class TileBuildContextPanel : MonoBehaviour
             && !isSettlement
             && !isWoodValley
             && !isStoneValley;
+        canBuildRoadOption = canBuildRoad;
+        canBuildSawmillOption = isWoodValley;
+        canBuildStoneMineOption = isStoneValley;
 
         if (buildRoadButton != null)
         {
@@ -170,12 +247,234 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (buildSawmillButton != null)
         {
-            buildSawmillButton.interactable = isWoodValley;
+            buildSawmillButton.interactable = canBuildSawmillOption;
         }
 
         if (buildStoneMineButton != null)
         {
-            buildStoneMineButton.interactable = isStoneValley;
+            buildStoneMineButton.interactable = canBuildStoneMineOption;
+        }
+
+        if (confirmBuildButton != null)
+        {
+            confirmBuildButton.interactable = IsSelectedOptionCurrentlyBuildable();
+        }
+    }
+
+    private void EnsureSelectedOptionIsValid(GridTile tile, Vector2Int coordinate, bool tileChanged)
+    {
+        if (tileChanged)
+        {
+            selectedOption = BuildOption.None;
+        }
+
+        bool selectedInvalid = selectedOption != BuildOption.None && !IsSelectedOptionCurrentlyBuildable();
+        if (selectedInvalid)
+        {
+            selectedOption = BuildOption.None;
+        }
+
+        UpdateSelectionVisuals();
+        UpdateCostPreviewForSelection(tile, coordinate);
+
+        if (confirmBuildButton != null)
+        {
+            confirmBuildButton.interactable = IsSelectedOptionCurrentlyBuildable();
+        }
+    }
+
+    private void OnBuildOptionSelected(BuildOption option)
+    {
+        if (!IsOptionBuildable(option))
+        {
+            return;
+        }
+
+        selectedOption = option;
+        UpdateSelectionVisuals();
+
+        if (gridMap == null || currentCoordinate.x < 0 || currentCoordinate.y < 0)
+        {
+            UpdateCostTexts(0, 0);
+            return;
+        }
+
+        GridTile tile = gridMap.GetTileAt(currentCoordinate.x, currentCoordinate.y);
+        UpdateCostPreviewForSelection(tile, currentCoordinate);
+
+        if (confirmBuildButton != null)
+        {
+            confirmBuildButton.interactable = IsSelectedOptionCurrentlyBuildable();
+        }
+    }
+
+    public void SelectBuildOptionByIndex(int optionIndex)
+    {
+        BuildOption option = optionIndex switch
+        {
+            0 => BuildOption.Road,
+            1 => BuildOption.Sawmill,
+            2 => BuildOption.StoneMine,
+            _ => BuildOption.None
+        };
+
+        if (option == BuildOption.None)
+        {
+            return;
+        }
+
+        OnBuildOptionSelected(option);
+    }
+
+    public void ConfirmSelectedBuild()
+    {
+        TryConfirmSelectedBuild();
+    }
+
+    private void UpdateCostPreviewForSelection(GridTile tile, Vector2Int coordinate)
+    {
+        int woodCost = 0;
+        int stoneCost = 0;
+
+        switch (selectedOption)
+        {
+            case BuildOption.Road:
+                TryGetRoadCost(tile, coordinate, out woodCost, out stoneCost);
+                break;
+
+            case BuildOption.Sawmill:
+                woodCost = sawmillWoodCost;
+                stoneCost = sawmillStoneCost;
+                break;
+
+            case BuildOption.StoneMine:
+                woodCost = stoneMineWoodCost;
+                stoneCost = stoneMineStoneCost;
+                break;
+        }
+
+        UpdateCostTexts(woodCost, stoneCost);
+    }
+
+    private bool TryGetRoadCost(GridTile tile, Vector2Int coordinate, out int woodCost, out int stoneCost)
+    {
+        woodCost = 0;
+        stoneCost = 0;
+
+        if (tileBuilding == null || tile == null)
+        {
+            return false;
+        }
+
+        if (!tileBuilding.CanBuildRoadAt(coordinate))
+        {
+            return false;
+        }
+
+        switch (tile.tileType)
+        {
+            case TileType.Land:
+                woodCost = 0;
+                stoneCost = 1;
+                return true;
+
+            case TileType.River:
+                woodCost = 1;
+                stoneCost = 0;
+                return true;
+
+            case TileType.Mountain:
+            case TileType.Obstacle:
+                woodCost = 2;
+                stoneCost = 2;
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private void UpdateCostTexts(int woodCost, int stoneCost)
+    {
+        if (woodCostText != null)
+        {
+            woodCostText.text = woodCost.ToString("00");
+        }
+
+        if (stoneCostText != null)
+        {
+            stoneCostText.text = stoneCost.ToString("00");
+        }
+    }
+
+    private void UpdateSelectionVisuals()
+    {
+        ApplyButtonState(buildRoadButton, selectedOption == BuildOption.Road);
+        ApplyButtonState(buildSawmillButton, selectedOption == BuildOption.Sawmill);
+        ApplyButtonState(buildStoneMineButton, selectedOption == BuildOption.StoneMine);
+    }
+
+    private void ApplyButtonState(Button button, bool isSelected)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        ColorBlock colors = button.colors;
+        Color targetColor = isSelected ? selectedButtonColor : normalButtonColor;
+        colors.normalColor = targetColor;
+        colors.highlightedColor = targetColor;
+        colors.selectedColor = targetColor;
+        button.colors = colors;
+    }
+
+    private bool IsSelectedOptionCurrentlyBuildable()
+    {
+        return IsOptionBuildable(selectedOption);
+    }
+
+    private bool IsOptionBuildable(BuildOption option)
+    {
+        return option switch
+        {
+            BuildOption.Road => canBuildRoadOption,
+            BuildOption.Sawmill => canBuildSawmillOption,
+            BuildOption.StoneMine => canBuildStoneMineOption,
+            _ => false
+        };
+    }
+
+    private void TryConfirmSelectedBuild()
+    {
+        if (!selectTile.HasSelection)
+        {
+            return;
+        }
+
+        if (currentCoordinate.x < 0 || currentCoordinate.y < 0)
+        {
+            return;
+        }
+
+        if (!IsSelectedOptionCurrentlyBuildable())
+        {
+            return;
+        }
+
+        switch (selectedOption)
+        {
+            case BuildOption.Road:
+                OnBuildRoadPressed();
+                break;
+
+            case BuildOption.Sawmill:
+                OnBuildSawmillPressed();
+                break;
+
+            case BuildOption.StoneMine:
+                OnBuildStoneMinePressed();
+                break;
         }
     }
 
@@ -326,6 +625,14 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             return;
         }
+
+        if (turns != null && !turns.TrySpendResources(sawmillWoodCost, sawmillStoneCost))
+        {
+            Debug.LogWarning($"Not enough resources for sawmill. Need W{sawmillWoodCost} S{sawmillStoneCost}.", this);
+            return;
+        }
+
+        Debug.Log("Sawmill build confirmation received. Placement logic is not implemented yet.", this);
     }
 
     private void OnBuildStoneMinePressed()
@@ -334,5 +641,13 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             return;
         }
+
+        if (turns != null && !turns.TrySpendResources(stoneMineWoodCost, stoneMineStoneCost))
+        {
+            Debug.LogWarning($"Not enough resources for stone mine. Need W{stoneMineWoodCost} S{stoneMineStoneCost}.", this);
+            return;
+        }
+
+        Debug.Log("Stone mine build confirmation received. Placement logic is not implemented yet.", this);
     }
 }

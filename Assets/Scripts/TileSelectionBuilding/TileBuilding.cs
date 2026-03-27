@@ -17,7 +17,6 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Turns turns;
     [SerializeField] private UnityEngine.Camera mainCamera;
-    [SerializeField] private InputActionReference buildAction;
     [SerializeField] private SelectTile selectTile;
 
     [Header("Road Prefabs")]
@@ -129,22 +128,6 @@ public class TileBuilding : MonoBehaviour
         }
     }
 
-    private void OnEnable()
-    {
-        if (buildAction != null && buildAction.action != null)
-        {
-            buildAction.action.Enable();
-        }
-    }
-
-    private void OnDisable()
-    {
-        if (buildAction != null && buildAction.action != null)
-        {
-            buildAction.action.Disable();
-        }
-    }
-
     private void Update()
     {
         if (gridMap == null || turns == null || mainCamera == null)
@@ -154,7 +137,6 @@ public class TileBuilding : MonoBehaviour
 
         UpdateHoveredTile();
         AnimateTiles();
-        TryBuildOnClick();
     }
 
     private void UpdateHoveredTile()
@@ -218,41 +200,6 @@ public class TileBuilding : MonoBehaviour
         }
 
         SetHoveredTile(tileObject, hoveredCoordinate);
-    }
-
-    private void TryBuildOnClick()
-    {
-        if (hoveredTile == null)
-        {
-            return;
-        }
-
-        bool buildPressed = false;
-        if (buildAction != null && buildAction.action != null)
-        {
-            buildPressed = buildAction.action.WasPressedThisFrame();
-        }
-        else if (Mouse.current != null)
-        {
-            buildPressed = Mouse.current.leftButton.wasPressedThisFrame;
-        }
-
-        if (!buildPressed)
-        {
-            return;
-        }
-
-        if (hoveredCoordinate.x < 0 || hoveredCoordinate.y < 0)
-        {
-            if (enableDebugLogs)
-            {
-                Debug.Log("Build blocked: no valid hovered coordinate resolved.", this);
-            }
-            return;
-        }
-
-        Vector2Int tileCoordinate = hoveredCoordinate;
-        TryBuildRoadInternal(tileCoordinate);
     }
 
     private bool TryBuildRoadInternal(Vector2Int tileCoordinate)

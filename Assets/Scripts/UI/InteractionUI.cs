@@ -14,6 +14,7 @@ public class InteractionUI : MonoBehaviour
     [SerializeField] private TMP_Text woodCostText;
     [SerializeField] private TMP_Text stoneCostText;
     [SerializeField] private Button confirmButton;
+    [SerializeField] private TileBuildContextPanel tileBuildContextPanel;
 
     [SerializeField] private Turns turns;
 
@@ -24,6 +25,11 @@ public class InteractionUI : MonoBehaviour
         if (turns == null)
         {
             turns = FindAnyObjectByType<Turns>();
+        }
+
+        if (tileBuildContextPanel == null)
+        {
+            tileBuildContextPanel = FindAnyObjectByType<TileBuildContextPanel>();
         }
 
         SetupButtons();
@@ -106,6 +112,11 @@ public class InteractionUI : MonoBehaviour
         }
 
         Debug.Log($"InteractionUI: Selected build option {pressedButton} - Wood: {woodCost}, Stone: {stoneCost}");
+
+        if (tileBuildContextPanel != null)
+        {
+            tileBuildContextPanel.SelectBuildOptionByIndex(pressedButton);
+        }
     }
 
     public void OnConfirmed()
@@ -122,25 +133,14 @@ public class InteractionUI : MonoBehaviour
             return;
         }
 
-        if (turns == null)
+        if (tileBuildContextPanel != null)
         {
-            Debug.LogError("InteractionUI: Turns reference is missing.", this);
+            tileBuildContextPanel.SelectBuildOptionByIndex(_selectedButtonIndex);
+            tileBuildContextPanel.ConfirmSelectedBuild();
             return;
         }
 
-        int woodCost = buildCosts[_selectedButtonIndex][0];
-        int stoneCost = buildCosts[_selectedButtonIndex][1];
-
-        if (!turns.TrySpendResources(woodCost, stoneCost))
-        {
-            Debug.LogWarning($"InteractionUI: Not enough resources. Need {woodCost} wood and {stoneCost} stone.", this);
-            return;
-        }
-
-        // Placeholder: Execute build action
-        Debug.Log($"InteractionUI: Build option {_selectedButtonIndex} confirmed!");
-
-        // TODO: Replace with actual build logic
+        Debug.LogWarning("InteractionUI: TileBuildContextPanel is not assigned, so confirm cannot execute build logic.", this);
     }
 
     private void ApplyButtonState(int index, bool isSelected)
