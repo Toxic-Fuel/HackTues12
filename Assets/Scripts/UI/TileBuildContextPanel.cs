@@ -45,10 +45,23 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private Color selectedButtonColor = new Color(0.82f, 0.82f, 0.62f, 1f);
 
     [Header("Build Costs")]
+    [SerializeField, Min(0)] private int roadWoodCost = 1;
+    [SerializeField, Min(0)] private int roadStoneCost = 1;
     [SerializeField, Min(0)] private int sawmillWoodCost = 2;
     [SerializeField, Min(0)] private int sawmillStoneCost = 2;
     [SerializeField, Min(0)] private int stoneMineWoodCost = 5;
     [SerializeField, Min(0)] private int stoneMineStoneCost = 4;
+
+    [Header("Build Turn Costs")]
+    [SerializeField, Min(0)] private int roadTurnCost = 1;
+    [SerializeField, Min(0)] private int stoneMineMineTurnCost = 1;
+    [SerializeField, Min(0)] private int sawmillTurnCost = 1;
+
+    [Header("Collector Income Per Turn")]
+    [SerializeField, Min(0)] private int sawmillWoodPerTurn = 1;
+    [SerializeField, Min(0)] private int sawmillStonePerTurn = 0;
+    [SerializeField, Min(0)] private int stoneMineWoodPerTurn = 0;
+    [SerializeField, Min(0)] private int stoneMineStonePerTurn = 1;
 
     [Header("Building Prefabs")]
     [SerializeField] private GameObject sawmillForestPrefab;
@@ -382,6 +395,10 @@ public class TileBuildContextPanel : MonoBehaviour
         TryConfirmSelectedBuild();
     }
 
+    public int GetRoadWoodCost() => roadWoodCost;
+    public int GetRoadStoneCost() => roadStoneCost;
+    public int GetRoadTurnCost() => roadTurnCost;
+
     private void UpdateCostPreviewForSelection(GridTile tile, Vector2Int coordinate)
     {
         int woodCost = 0;
@@ -422,7 +439,7 @@ public class TileBuildContextPanel : MonoBehaviour
             return false;
         }
 
-        return TryGetRoadCostByTileName(tile.tileName, out woodCost, out stoneCost);
+        return TryGetRoadCostByTile(tile, out woodCost, out stoneCost);
     }
 
     private void UpdateCostTexts(int woodCost, int stoneCost)
@@ -684,43 +701,24 @@ public class TileBuildContextPanel : MonoBehaviour
     {
         return HasExactTileName(tile, "Obstacle1");
     }
-
-    private static bool TryGetRoadCostByTileName(string tileName, out int woodCost, out int stoneCost)
+    private bool TryGetRoadCostByTile(GridTile tile, out int woodCost, out int stoneCost)
     {
-        woodCost = 0;
-        stoneCost = 0;
+        woodCost = roadWoodCost;
+        stoneCost = roadStoneCost;
 
-        if (string.IsNullOrWhiteSpace(tileName))
+        if (tile == null)
         {
             return false;
         }
 
-        string lower = tileName.Trim().ToLowerInvariant();
-
-        if (lower.Contains("grass") || lower == "land" || lower.Contains("plain"))
+        string lower = (tile.tileName ?? string.Empty).Trim().ToLowerInvariant();
+        if (lower == "obstacle1" || lower == "obstacle2")
         {
-            woodCost = 0;
-            stoneCost = 1;
-            return true;
+            return false;
         }
 
-        if (lower == "forest")
-        {
-            woodCost = 1;
-            stoneCost = 1;
-            return true;
-        }
-
-        if (lower == "valley")
-        {
-            woodCost = 1;
-            stoneCost = 1;
-            return true;
-        }
-
-        return false;
+        return true;
     }
-
     private void SetPanelVisible(bool visible)
     {
         if (panelRoot == null)
@@ -793,7 +791,7 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (!TrySpendBuildActionAndResources(sawmillWoodCost, sawmillStoneCost, "sawmill"))
+        if (!TrySpendBuildActionAndResources(sawmillWoodCost, sawmillStoneCost, sawmillTurnCost, "sawmill"))
         {
             return;
         }
@@ -802,6 +800,11 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             Debug.LogWarning("Sawmill build failed: could not replace tile visual.", this);
             return;
+        }
+
+        if (turns != null)
+        {
+            turns.AddPerTurnResources(sawmillWoodPerTurn, sawmillStonePerTurn);
         }
 
         placedCollectorBuildings.Add(currentCoordinate);
@@ -853,7 +856,7 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (!TrySpendBuildActionAndResources(stoneMineWoodCost, stoneMineStoneCost, "stone mine"))
+        if (!TrySpendBuildActionAndResources(stoneMineWoodCost, stoneMineStoneCost, stoneMineMineTurnCost, "stone mine"))
         {
             return;
         }
@@ -864,6 +867,11 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
+        if (turns != null)
+        {
+            turns.AddPerTurnResources(stoneMineWoodPerTurn, stoneMineStonePerTurn);
+        }
+
         placedCollectorBuildings.Add(currentCoordinate);
         if (selectTile != null)
         {
@@ -871,7 +879,7 @@ public class TileBuildContextPanel : MonoBehaviour
         }
     }
 
-    private bool TrySpendBuildActionAndResources(int woodCost, int stoneCost, string buildLabel)
+    private bool TrySpendBuildActionAndResources(int woodCost, int stoneCost, int turnCost, string buildLabel)
     {
         if (turns == null)
         {
@@ -890,9 +898,9 @@ public class TileBuildContextPanel : MonoBehaviour
             return false;
         }
 
-        if (!turns.TrySpendAction(1))
+        if (!turns.TrySpendAction(turnCost))
         {
-            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend action.", this);
+            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend {turnCost} action(s).", this);
             return false;
         }
 
