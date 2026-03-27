@@ -53,13 +53,21 @@ public class Turns : MonoBehaviour
     public int CurrentWood
     {
         get => _currentWood;
-        private set => _currentWood = value;
+        set
+        {
+            _currentWood = value;
+            RefreshUI();
+        }
     }
 
     public int CurrentStone
     {
         get => _currentStone;
-        private set => _currentStone = value;
+        set
+        {
+            _currentStone = value;
+            RefreshUI();
+        }
     }
 
     public TurnState State { get; private set; } = TurnState.NotStarted;

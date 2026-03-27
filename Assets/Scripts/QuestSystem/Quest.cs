@@ -11,6 +11,17 @@ namespace QuestSystem
         [SerializeField] private int woodCost, stoneCost, turnCost;
 
         private bool _isCompleted;
+        public bool IsCompleted => _isCompleted;
+
+        public void SetTurns(Turns turnsReference)
+        {
+            if (turnsReference == null)
+            {
+                return;
+            }
+
+            turns = turnsReference;
+        }
 
         public bool PayResources()
         {
