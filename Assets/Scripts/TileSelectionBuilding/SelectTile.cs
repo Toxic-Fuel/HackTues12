@@ -1,5 +1,6 @@
 using GridGeneration;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class SelectTile : MonoBehaviour
@@ -93,6 +94,11 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        if (IsPointerOverUI())
+        {
+            return;
+        }
+
         if (!TryGetMouseGridCoordinate(out Vector2Int coordinate))
         {
             return;
@@ -104,6 +110,12 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        if (tileData == null || !IsSelectableTileType(tileData.tileType))
+        {
+            return;
+        }
+
         if (coordinate == selectedCoordinate)
         {
             DeselectTile();
@@ -111,6 +123,18 @@ public class SelectTile : MonoBehaviour
         }
 
         SelectTileAt(clickedTile, coordinate);
+    }
+
+    private static bool IsPointerOverUI()
+    {
+        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+    }
+
+    private static bool IsSelectableTileType(TileType tileType)
+    {
+        return tileType != TileType.Road
+            && tileType != TileType.City
+            && tileType != TileType.Village;
     }
 
     private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
