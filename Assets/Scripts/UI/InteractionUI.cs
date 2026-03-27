@@ -6,7 +6,7 @@ public class InteractionUI : MonoBehaviour
 {
     [Header("Build Options")]
     [SerializeField] private int[][] buildCosts; // buildCosts[i][0] = wood, buildCosts[i][1] = stone
-    
+
     [Header("UI References")]
     [SerializeField] private Button[] buildButtons;
     [SerializeField] private Color normalButtonColor;
@@ -14,9 +14,9 @@ public class InteractionUI : MonoBehaviour
     [SerializeField] private TMP_Text woodCostText;
     [SerializeField] private TMP_Text stoneCostText;
     [SerializeField] private Button confirmButton;
-    
+
     [SerializeField] private Turns turns;
-    
+
     private int _selectedButtonIndex = -1;
 
     private void Start()
@@ -31,7 +31,7 @@ public class InteractionUI : MonoBehaviour
         {
             new int[] { 0, 1 },
             new int[] { 2, 2 },
-            new int[] { 5, 4 } 
+            new int[] { 5, 4 }
         };
 
     }
@@ -94,12 +94,12 @@ public class InteractionUI : MonoBehaviour
         // Update cost texts
         int woodCost = buildCosts[pressedButton][0];
         int stoneCost = buildCosts[pressedButton][1];
-        
+
         if (woodCostText != null)
         {
             woodCostText.text = woodCost.ToString();
         }
-        
+
         if (stoneCostText != null)
         {
             stoneCostText.text = stoneCost.ToString();
@@ -139,7 +139,7 @@ public class InteractionUI : MonoBehaviour
 
         // Placeholder: Execute build action
         Debug.Log($"InteractionUI: Build option {_selectedButtonIndex} confirmed!");
-        
+
         // TODO: Replace with actual build logic
     }
 
@@ -154,8 +154,8 @@ public class InteractionUI : MonoBehaviour
         Color fallbackNormal = colors.normalColor;
         Color fallbackSelected = colors.pressedColor;
 
-        Color configuredNormal = GetConfiguredColor(normalButtonColor,  fallbackNormal);
-        Color configuredSelected = GetConfiguredColor(selectedButtonColor,  fallbackSelected);
+        Color configuredNormal = GetConfiguredColor(normalButtonColor, fallbackNormal);
+        Color configuredSelected = GetConfiguredColor(selectedButtonColor, fallbackSelected);
         Color targetColor = isSelected ? configuredSelected : configuredNormal;
 
         // Keep the visual state stable after click by applying the same tint for non-pressed states.
