@@ -25,6 +25,9 @@ public class TileBuildContextPanel : MonoBehaviour
     [Header("Transitions")]
     [SerializeField, Min(0f)] private float tileSwitchHideDuration = 0.06f;
 
+    [Header("Clamping")]
+    [SerializeField, Min(0f)] private float screenEdgePadding = 10f;
+
     private Vector2Int currentCoordinate = new Vector2Int(-1, -1);
     private Vector2Int lastCoordinate = new Vector2Int(-1, -1);
     private float hideUntilTime;
@@ -193,8 +196,33 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPoint, uiCamera, out Vector2 localPoint))
         {
-            panelRoot.anchoredPosition = localPoint;
+            panelRoot.anchoredPosition = ClampToParent(localPoint, parentRect);
         }
+    }
+
+    private Vector2 ClampToParent(Vector2 targetPosition, RectTransform parentRect)
+    {
+        Vector2 panelSize = new Vector2(
+            panelRoot.rect.width * Mathf.Abs(panelRoot.lossyScale.x),
+            panelRoot.rect.height * Mathf.Abs(panelRoot.lossyScale.y));
+
+        float canvasScale = canvas != null ? canvas.scaleFactor : 1f;
+        if (canvasScale > 0.0001f)
+        {
+            panelSize /= canvasScale;
+        }
+
+        Vector2 pivot = panelRoot.pivot;
+        Rect parent = parentRect.rect;
+
+        float minX = parent.xMin + panelSize.x * pivot.x + screenEdgePadding;
+        float maxX = parent.xMax - panelSize.x * (1f - pivot.x) - screenEdgePadding;
+        float minY = parent.yMin + panelSize.y * pivot.y + screenEdgePadding;
+        float maxY = parent.yMax - panelSize.y * (1f - pivot.y) - screenEdgePadding;
+
+        return new Vector2(
+            Mathf.Clamp(targetPosition.x, minX, maxX),
+            Mathf.Clamp(targetPosition.y, minY, maxY));
     }
 
     private bool IsTileMatchingAnyKeyword(GridTile tile, string[] keywords)

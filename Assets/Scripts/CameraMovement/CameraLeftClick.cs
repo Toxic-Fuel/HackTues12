@@ -5,15 +5,18 @@ public class CameraLeftClick : MonoBehaviour
 {
     [SerializeField] private float dragSensitivity = 0.2f;
     [SerializeField] private float dragSmoothing = 0.05f;
+    [SerializeField] private float dragStartThresholdPixels = 6f;
     [SerializeField] private float maxX = 50f;
     [SerializeField] private float maxZ = 50f;
     [SerializeField] private float minX = -50f;
     [SerializeField] private float minZ = -50f;
 
     private bool isDragging = false;
+    private bool pendingDragStart = false;
     private Mouse mouse;
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
+    private Vector2 dragPressScreenPosition;
     [SerializeField] private SelectTile selectTile;
 
     private void OnEnable()
@@ -37,22 +40,34 @@ public class CameraLeftClick : MonoBehaviour
 
         if (selectTile != null && selectTile.HasSelection)
         {
-            isDragging = false;
-            smoothedDelta = Vector2.zero;
-            deltaVelocity = Vector2.zero;
+            ResetDragState();
             return;
         }
 
         if (mouse.leftButton.wasPressedThisFrame)
         {
-            isDragging = true;
+            pendingDragStart = true;
+            isDragging = false;
+            dragPressScreenPosition = mouse.position.ReadValue();
         }
 
         if (mouse.leftButton.wasReleasedThisFrame)
         {
-            isDragging = false;
-            smoothedDelta = Vector2.zero;
-            deltaVelocity = Vector2.zero;
+            ResetDragState();
+            return;
+        }
+
+        if (pendingDragStart)
+        {
+            Vector2 currentPos = mouse.position.ReadValue();
+            float thresholdSquared = dragStartThresholdPixels * dragStartThresholdPixels;
+            if ((currentPos - dragPressScreenPosition).sqrMagnitude >= thresholdSquared)
+            {
+                pendingDragStart = false;
+                isDragging = true;
+                smoothedDelta = Vector2.zero;
+                deltaVelocity = Vector2.zero;
+            }
         }
 
         if (isDragging)
@@ -85,5 +100,13 @@ public class CameraLeftClick : MonoBehaviour
         newPosition.z = Mathf.Clamp(newPosition.z, minZ, maxZ);
 
         transform.localPosition = newPosition;
+    }
+
+    private void ResetDragState()
+    {
+        isDragging = false;
+        pendingDragStart = false;
+        smoothedDelta = Vector2.zero;
+        deltaVelocity = Vector2.zero;
     }
 }

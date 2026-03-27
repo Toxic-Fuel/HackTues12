@@ -15,12 +15,15 @@ public class SelectTile : MonoBehaviour
     [Header("Selection Animation")]
     [SerializeField] private float selectedLiftHeight = 0.2f;
     [SerializeField] private float selectedAnimationSpeed = 8f;
+    [SerializeField] private float clickSelectionThresholdPixels = 6f;
 
     private GameObject selectedTile;
     private Vector3 selectedBasePosition;
     private Vector2Int selectedCoordinate = new Vector2Int(-1, -1);
     private Vector2Int lastDeselectedCoordinate = new Vector2Int(-1, -1);
     private int lastDeselectedFrame = -1000;
+    private bool pendingMouseSelection;
+    private Vector2 mousePressPosition;
 
     public GameObject SelectedTile => selectedTile;
     public Vector2Int SelectedCoordinate => selectedCoordinate;
@@ -91,6 +94,8 @@ public class SelectTile : MonoBehaviour
             deselectAction.action.Disable();
         }
 
+        pendingMouseSelection = false;
+
         DeselectTile();
     }
 
@@ -137,26 +142,56 @@ public class SelectTile : MonoBehaviour
 
     private void TryToggleSelectionOnClick()
     {
-        bool selectionPressed = false;
-        if (selectAction != null && selectAction.action != null)
+        if (Mouse.current != null)
         {
-            selectionPressed = selectAction.action.WasPressedThisFrame();
-        }
-        else if (Mouse.current != null)
-        {
-            selectionPressed = Mouse.current.leftButton.wasPressedThisFrame;
-        }
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                pendingMouseSelection = true;
+                mousePressPosition = Mouse.current.position.ReadValue();
+                return;
+            }
 
-        if (!selectionPressed)
-        {
+            if (Mouse.current.leftButton.wasReleasedThisFrame)
+            {
+                if (!pendingMouseSelection)
+                {
+                    return;
+                }
+
+                pendingMouseSelection = false;
+
+                float thresholdSq = clickSelectionThresholdPixels * clickSelectionThresholdPixels;
+                Vector2 releasePosition = Mouse.current.position.ReadValue();
+                if ((releasePosition - mousePressPosition).sqrMagnitude > thresholdSq)
+                {
+                    // Treat as drag gesture; do not select.
+                    return;
+                }
+
+                if (IsPointerOverUI())
+                {
+                    return;
+                }
+
+                TryToggleSelectionAtPointer();
+            }
+
             return;
         }
 
-        if (IsPointerOverUI())
+        if (selectAction != null && selectAction.action != null && selectAction.action.WasPressedThisFrame())
         {
-            return;
-        }
+            if (IsPointerOverUI())
+            {
+                return;
+            }
 
+            TryToggleSelectionAtPointer();
+        }
+    }
+
+    private void TryToggleSelectionAtPointer()
+    {
         if (!TryGetMouseGridCoordinate(out Vector2Int coordinate))
         {
             return;
