@@ -1,4 +1,5 @@
 using GridGeneration;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -42,9 +43,10 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField, Min(0)] private int stoneMineWoodCost = 5;
     [SerializeField, Min(0)] private int stoneMineStoneCost = 4;
 
-    [Header("Tile Name Rules")]
-    [SerializeField] private string[] woodValleyKeywords = { "wood valley", "wood" };
-    [SerializeField] private string[] stoneValleyKeywords = { "stone valley", "stone" };
+    [Header("Building Prefabs")]
+    [SerializeField] private GameObject sawmillForestPrefab;
+    [SerializeField] private GameObject stoneMineMountainPrefab;
+    [SerializeField] private GameObject stoneMineStoneValleyPrefab;
 
     [Header("Transitions")]
     [SerializeField, Min(0f)] private float tileSwitchHideDuration = 0.06f;
@@ -65,6 +67,7 @@ public class TileBuildContextPanel : MonoBehaviour
     private bool canBuildRoadOption;
     private bool canBuildSawmillOption;
     private bool canBuildStoneMineOption;
+    private readonly HashSet<Vector2Int> placedCollectorBuildings = new HashSet<Vector2Int>();
 
     private void Awake()
     {
@@ -228,17 +231,25 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private void UpdatePanelButtons(GridTile tile, Vector2Int coordinate)
     {
-        bool isWoodValley = IsTileMatchingAnyKeyword(tile, woodValleyKeywords);
-        bool isStoneValley = IsTileMatchingAnyKeyword(tile, stoneValleyKeywords);
-        bool isSettlement = tile.tileType == TileType.City || tile.tileType == TileType.Village;
+        bool isSettlement = IsSettlementTile(tile);
+        bool isForestTile = IsForestTile(tile);
+        bool isValleyTile = IsValleyTile(tile);
+        bool isMountainMineTile = IsMountainMineTile(tile);
+
+        bool hasCollectorBuilding = placedCollectorBuildings.Contains(coordinate);
+        bool hasRoadBuilding = tileBuilding != null && tileBuilding.IsRoadAlreadyBuilt(coordinate);
 
         bool canBuildRoad = tileBuilding.CanBuildRoadAt(coordinate)
             && !isSettlement
-            && !isWoodValley
-            && !isStoneValley;
+            && !hasCollectorBuilding;
+        bool canBuildSawmill = isForestTile && !hasCollectorBuilding && !hasRoadBuilding;
+        bool canBuildStoneMine = (isValleyTile || isMountainMineTile)
+            && !hasCollectorBuilding
+            && !hasRoadBuilding;
+
         canBuildRoadOption = canBuildRoad;
-        canBuildSawmillOption = isWoodValley;
-        canBuildStoneMineOption = isStoneValley;
+        canBuildSawmillOption = canBuildSawmill;
+        canBuildStoneMineOption = canBuildStoneMine;
 
         if (buildRoadButton != null)
         {
@@ -371,27 +382,7 @@ public class TileBuildContextPanel : MonoBehaviour
             return false;
         }
 
-        switch (tile.tileType)
-        {
-            case TileType.Land:
-                woodCost = 0;
-                stoneCost = 1;
-                return true;
-
-            case TileType.River:
-                woodCost = 1;
-                stoneCost = 0;
-                return true;
-
-            case TileType.Mountain:
-            case TileType.Obstacle:
-                woodCost = 2;
-                stoneCost = 2;
-                return true;
-
-            default:
-                return false;
-        }
+        return TryGetRoadCostByTileName(tile.tileName, out woodCost, out stoneCost);
     }
 
     private void UpdateCostTexts(int woodCost, int stoneCost)
@@ -562,26 +553,64 @@ public class TileBuildContextPanel : MonoBehaviour
             Mathf.Clamp(targetPosition.y, minY, maxY));
     }
 
-    private bool IsTileMatchingAnyKeyword(GridTile tile, string[] keywords)
+    private static bool HasExactTileName(GridTile tile, string expectedName)
     {
-        if (tile == null || string.IsNullOrEmpty(tile.tileName) || keywords == null)
+        return tile != null
+            && !string.IsNullOrWhiteSpace(expectedName)
+            && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSettlementTile(GridTile tile)
+    {
+        return HasExactTileName(tile, "City") || HasExactTileName(tile, "Village");
+    }
+
+    private static bool IsForestTile(GridTile tile)
+    {
+        return HasExactTileName(tile, "Forest");
+    }
+
+    private static bool IsValleyTile(GridTile tile)
+    {
+        return HasExactTileName(tile, "Valley");
+    }
+
+    private static bool IsMountainMineTile(GridTile tile)
+    {
+        return HasExactTileName(tile, "Obstacle1");
+    }
+
+    private static bool TryGetRoadCostByTileName(string tileName, out int woodCost, out int stoneCost)
+    {
+        woodCost = 0;
+        stoneCost = 0;
+
+        if (string.IsNullOrWhiteSpace(tileName))
         {
             return false;
         }
 
-        string tileName = tile.tileName.ToLowerInvariant();
-        for (int i = 0; i < keywords.Length; i++)
-        {
-            string keyword = keywords[i];
-            if (string.IsNullOrEmpty(keyword))
-            {
-                continue;
-            }
+        string lower = tileName.Trim().ToLowerInvariant();
 
-            if (tileName.Contains(keyword.ToLowerInvariant()))
-            {
-                return true;
-            }
+        if (lower.Contains("grass") || lower == "land" || lower.Contains("plain"))
+        {
+            woodCost = 0;
+            stoneCost = 1;
+            return true;
+        }
+
+        if (lower == "forest")
+        {
+            woodCost = 1;
+            stoneCost = 1;
+            return true;
+        }
+
+        if (lower == "valley")
+        {
+            woodCost = 1;
+            stoneCost = 1;
+            return true;
         }
 
         return false;
@@ -626,13 +655,42 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (turns != null && !turns.TrySpendResources(sawmillWoodCost, sawmillStoneCost))
+        GridTile tile = gridMap != null ? gridMap.GetTileAt(currentCoordinate.x, currentCoordinate.y) : null;
+        if (tile == null || !IsForestTile(tile))
         {
-            Debug.LogWarning($"Not enough resources for sawmill. Need W{sawmillWoodCost} S{sawmillStoneCost}.", this);
+            Debug.LogWarning($"Sawmill build blocked: tile must be 'Forest' but was '{tile?.tileName ?? "null"}'.", this);
             return;
         }
 
-        Debug.Log("Sawmill build confirmation received. Placement logic is not implemented yet.", this);
+        if (placedCollectorBuildings.Contains(currentCoordinate)
+            || (tileBuilding != null && tileBuilding.IsRoadAlreadyBuilt(currentCoordinate)))
+        {
+            Debug.LogWarning("Sawmill build blocked: tile already has a building.", this);
+            return;
+        }
+
+        if (sawmillForestPrefab == null)
+        {
+            Debug.LogWarning("Sawmill prefab for Forest is not assigned.", this);
+            return;
+        }
+
+        if (!TrySpendBuildActionAndResources(sawmillWoodCost, sawmillStoneCost, "sawmill"))
+        {
+            return;
+        }
+
+        if (!gridMap.TryReplaceTileVisualAt(currentCoordinate.x, currentCoordinate.y, sawmillForestPrefab, Quaternion.identity))
+        {
+            Debug.LogWarning("Sawmill build failed: could not replace tile visual.", this);
+            return;
+        }
+
+        placedCollectorBuildings.Add(currentCoordinate);
+        if (selectTile != null)
+        {
+            selectTile.ClearSelection();
+        }
     }
 
     private void OnBuildStoneMinePressed()
@@ -642,12 +700,90 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (turns != null && !turns.TrySpendResources(stoneMineWoodCost, stoneMineStoneCost))
+        GridTile tile = gridMap != null ? gridMap.GetTileAt(currentCoordinate.x, currentCoordinate.y) : null;
+        if (tile == null)
         {
-            Debug.LogWarning($"Not enough resources for stone mine. Need W{stoneMineWoodCost} S{stoneMineStoneCost}.", this);
+            Debug.LogWarning("Stone mine build blocked: tile data is missing.", this);
             return;
         }
 
-        Debug.Log("Stone mine build confirmation received. Placement logic is not implemented yet.", this);
+        if (placedCollectorBuildings.Contains(currentCoordinate)
+            || (tileBuilding != null && tileBuilding.IsRoadAlreadyBuilt(currentCoordinate)))
+        {
+            Debug.LogWarning("Stone mine build blocked: tile already has a building.", this);
+            return;
+        }
+
+        GameObject targetPrefab = null;
+        if (IsValleyTile(tile))
+        {
+            targetPrefab = stoneMineStoneValleyPrefab;
+        }
+        else if (IsMountainMineTile(tile))
+        {
+            targetPrefab = stoneMineMountainPrefab;
+        }
+        else
+        {
+            Debug.LogWarning($"Stone mine build blocked: tile must be 'Valley' or 'Obstacle1' but was '{tile.tileName}'.", this);
+            return;
+        }
+
+        if (targetPrefab == null)
+        {
+            Debug.LogWarning("Stone mine prefab is missing for this tile type.", this);
+            return;
+        }
+
+        if (!TrySpendBuildActionAndResources(stoneMineWoodCost, stoneMineStoneCost, "stone mine"))
+        {
+            return;
+        }
+
+        if (!gridMap.TryReplaceTileVisualAt(currentCoordinate.x, currentCoordinate.y, targetPrefab, Quaternion.identity))
+        {
+            Debug.LogWarning("Stone mine build failed: could not replace tile visual.", this);
+            return;
+        }
+
+        placedCollectorBuildings.Add(currentCoordinate);
+        if (selectTile != null)
+        {
+            selectTile.ClearSelection();
+        }
+    }
+
+    private bool TrySpendBuildActionAndResources(int woodCost, int stoneCost, string buildLabel)
+    {
+        if (turns == null)
+        {
+            return true;
+        }
+
+        if (!turns.CanTakeAction)
+        {
+            Debug.LogWarning($"Cannot build {buildLabel}: no actions left this turn.", this);
+            return false;
+        }
+
+        if (!turns.CanAffordResources(woodCost, stoneCost))
+        {
+            Debug.LogWarning($"Not enough resources for {buildLabel}. Need W{woodCost} S{stoneCost}.", this);
+            return false;
+        }
+
+        if (!turns.TrySpendAction(1))
+        {
+            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend action.", this);
+            return false;
+        }
+
+        if (!turns.TrySpendResources(woodCost, stoneCost))
+        {
+            Debug.LogWarning($"Cannot build {buildLabel}: failed to spend resources.", this);
+            return false;
+        }
+
+        return true;
     }
 }

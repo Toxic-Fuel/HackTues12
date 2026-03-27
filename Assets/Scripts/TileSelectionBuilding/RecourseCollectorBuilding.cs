@@ -94,17 +94,24 @@ public class RecourseCollectorBuilding : MonoBehaviour
         switch (buildingType)
         {
             case BuildingType.Sawmill:
-                return tile.tileType == TileType.Forest;
+                return HasExactTileName(tile, "Forest");
 
             case BuildingType.Mine1:
-                return tile.tileType == TileType.Valley;
+                return HasExactTileName(tile, "Valley");
 
             case BuildingType.Mine2:
-                return tile.tileType == TileType.Mountain;
+                return HasExactTileName(tile, "Obstacle1");
 
             default:
                 return false;
         }
+    }
+
+    private static bool HasExactTileName(GridTile tile, string expectedName)
+    {
+        return tile != null
+            && !string.IsNullOrWhiteSpace(expectedName)
+            && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
     }
 
     private void SelectBuilding(BuildingType buildingType)

@@ -180,12 +180,6 @@ public class TileBuilding : MonoBehaviour
             return;
         }
 
-        if (!CanBuildOnTile(hoveredCoordinate, out _, out _))
-        {
-            ClearHoveredTile();
-            return;
-        }
-
         GameObject tileObject = gridMap.GetTileInstanceAt(hoveredCoordinate.x, hoveredCoordinate.y);
         if (tileObject == null)
         {
@@ -330,31 +324,7 @@ public class TileBuilding : MonoBehaviour
             return false;
         }
 
-        switch (tile.tileType)
-        {
-            case TileType.Land:
-                woodCost = 0;
-                stoneCost = 1;
-                return true;
-
-            case TileType.River:
-                woodCost = 1;
-                stoneCost = 0;
-                return true;
-
-            case TileType.Mountain:
-                woodCost = 2;
-                stoneCost = 2;
-                return true;
-
-            case TileType.Obstacle:
-                woodCost = 2;
-                stoneCost = 2;
-                return true;
-
-            default:
-                return false;
-        }
+        return TryGetRoadCostByTileName(tile.tileName, out woodCost, out stoneCost);
     }
 
     private bool RebuildRoadVisualAt(Vector2Int coordinate)
@@ -494,7 +464,7 @@ public class TileBuilding : MonoBehaviour
             }
 
             GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
-            return tile != null && (tile.tileType == TileType.City || tile.tileType == TileType.Village);
+            return IsSettlementTile(tile);
         }
 
         HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
@@ -530,7 +500,7 @@ public class TileBuilding : MonoBehaviour
             for (int y = 0; y < gridMap.Height; y++)
             {
                 GridTile tile = gridMap.GetTileAt(x, y);
-                if (tile != null && tile.tileType == TileType.City)
+                if (HasExactTileName(tile, "City"))
                 {
                     Vector2Int cityCoordinate = new Vector2Int(x, y);
                     cachedConnectedNodes.Add(cityCoordinate);
@@ -570,7 +540,55 @@ public class TileBuilding : MonoBehaviour
         }
 
         GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
-        return tile != null && (tile.tileType == TileType.City || tile.tileType == TileType.Village);
+        return IsSettlementTile(tile);
+    }
+
+    private static bool IsSettlementTile(GridTile tile)
+    {
+        return HasExactTileName(tile, "City") || HasExactTileName(tile, "Village");
+    }
+
+    private static bool HasExactTileName(GridTile tile, string expectedName)
+    {
+        return tile != null
+            && !string.IsNullOrWhiteSpace(expectedName)
+            && string.Equals(tile.tileName, expectedName, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetRoadCostByTileName(string tileName, out int woodCost, out int stoneCost)
+    {
+        woodCost = 0;
+        stoneCost = 0;
+
+        if (string.IsNullOrWhiteSpace(tileName))
+        {
+            return false;
+        }
+
+        string lower = tileName.Trim().ToLowerInvariant();
+
+        if (lower.Contains("grass") || lower == "land" || lower.Contains("plain"))
+        {
+            woodCost = 0;
+            stoneCost = 1;
+            return true;
+        }
+
+        if (lower == "forest")
+        {
+            woodCost = 1;
+            stoneCost = 1;
+            return true;
+        }
+
+        if (lower == "valley")
+        {
+            woodCost = 1;
+            stoneCost = 1;
+            return true;
+        }
+
+        return false;
     }
 
     private void SetHoveredTile(GameObject tileObject, Vector2Int coordinate)
