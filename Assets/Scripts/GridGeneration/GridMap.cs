@@ -20,12 +20,17 @@ namespace GridGeneration
         [SerializeField] private int seed;
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
         [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
+        [SerializeField, Min(0.001f)] private float landNoiseScale = 0.2f;
+        [SerializeField, Range(0f, 1f)] private float grassDensity = 0.7f;
         [SerializeField, Min(0)] private int minDistance = 1;
         public GridTile[,] tileMap { get; private set; }
         private GameObject[,] gameObjectMap;
         private bool[,] protectedTileMap;
         private int placementTries = 1000;
         private const int maxVillages = 4, minVillages = 1;
+        private float landNoiseMin;
+        private float landNoiseMax;
+        private float[] nonGrassVariantThresholds;
 
         private struct NodeEdge
         {
@@ -132,8 +137,8 @@ namespace GridGeneration
                 return;
             }
 
-            GridTile landTile = FindFirstTileByType(TileType.Land);
-            if (landTile == null)
+            List<GridTile> landTiles = FindTilesByType(TileType.Land);
+            if (landTiles.Count == 0)
             {
                 Debug.LogError("GridMap: No tile with type Land found.", this);
                 return;
@@ -152,11 +157,15 @@ namespace GridGeneration
             gameObjectMap = new GameObject[Width, Height];
             protectedTileMap = new bool[Width, Height];
 
+            ComputeLandNoiseRange();
+            BuildNonGrassVariantThresholds(landTiles.Count);
+
 
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
                 {
+                    GridTile landTile = SelectLandTileForCoordinate(x, y, landTiles);
                     ReplaceTileAt(x, y, landTile);
                 }
             }
@@ -379,9 +388,7 @@ namespace GridGeneration
             for (int i = availableCoordinates.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(0, i + 1);
-                Vector2Int temp = availableCoordinates[i];
-                availableCoordinates[i] = availableCoordinates[j];
-                availableCoordinates[j] = temp;
+                (availableCoordinates[i], availableCoordinates[j]) = (availableCoordinates[j], availableCoordinates[i]);
             }
 
             int obstacleCount = Mathf.FloorToInt(availableCoordinates.Count * Mathf.Clamp01(obstaclePercent));
@@ -411,6 +418,138 @@ namespace GridGeneration
             float noiseValue = Mathf.PerlinNoise(sampleX, sampleY);
             int obstacleIndex = Mathf.Clamp(Mathf.FloorToInt(noiseValue * obstacleTiles.Count), 0, obstacleTiles.Count - 1);
             return obstacleTiles[obstacleIndex];
+        }
+
+        private GridTile SelectLandTileForCoordinate(int x, int y, List<GridTile> landTiles)
+        {
+            if (landTiles == null || landTiles.Count == 0)
+            {
+                return null;
+            }
+
+            GridTile grassTile = landTiles[0];
+            if (landTiles.Count == 1)
+            {
+                return grassTile;
+            }
+
+            float normalizedNoise = SampleNormalizedLandNoise(x, y);
+
+            // grassDensity controls how much of the map stays on the first Land tile.
+            if (normalizedNoise <= Mathf.Clamp01(grassDensity))
+            {
+                return grassTile;
+            }
+
+            int variantCount = landTiles.Count - 1;
+            if (variantCount <= 1)
+            {
+                return landTiles[1];
+            }
+
+            if (nonGrassVariantThresholds != null && nonGrassVariantThresholds.Length == variantCount - 1)
+            {
+                for (int i = 0; i < nonGrassVariantThresholds.Length; i++)
+                {
+                    if (normalizedNoise <= nonGrassVariantThresholds[i])
+                    {
+                        return landTiles[i + 1];
+                    }
+                }
+
+                return landTiles[^1];
+            }
+
+            float remapped = Mathf.InverseLerp(Mathf.Clamp01(grassDensity), 1f, normalizedNoise);
+            int variantIndex = Mathf.Clamp(Mathf.FloorToInt(remapped * variantCount), 0, variantCount - 1);
+            return landTiles[variantIndex + 1];
+        }
+
+        private void ComputeLandNoiseRange()
+        {
+            landNoiseMin = float.MaxValue;
+            landNoiseMax = float.MinValue;
+
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    float value = SampleRawLandNoise(x, y);
+                    if (value < landNoiseMin)
+                    {
+                        landNoiseMin = value;
+                    }
+
+                    if (value > landNoiseMax)
+                    {
+                        landNoiseMax = value;
+                    }
+                }
+            }
+
+            if (landNoiseMin > landNoiseMax)
+            {
+                landNoiseMin = 0f;
+                landNoiseMax = 1f;
+            }
+        }
+
+        private void BuildNonGrassVariantThresholds(int landTileCount)
+        {
+            nonGrassVariantThresholds = null;
+
+            int variantCount = landTileCount - 1;
+            if (variantCount <= 1)
+            {
+                return;
+            }
+
+            float grassCutoff = Mathf.Clamp01(grassDensity);
+            var nonGrassSamples = new List<float>(Width * Height);
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    float normalizedNoise = SampleNormalizedLandNoise(x, y);
+                    if (normalizedNoise > grassCutoff)
+                    {
+                        nonGrassSamples.Add(normalizedNoise);
+                    }
+                }
+            }
+
+            if (nonGrassSamples.Count == 0)
+            {
+                return;
+            }
+
+            nonGrassSamples.Sort();
+            nonGrassVariantThresholds = new float[variantCount - 1];
+            for (int i = 1; i < variantCount; i++)
+            {
+                float quantile = i / (float)variantCount;
+                int sampleIndex = Mathf.Clamp(Mathf.CeilToInt(nonGrassSamples.Count * quantile) - 1, 0, nonGrassSamples.Count - 1);
+                nonGrassVariantThresholds[i - 1] = nonGrassSamples[sampleIndex];
+            }
+        }
+
+        private float SampleRawLandNoise(int x, int y)
+        {
+            float sampleScale = Mathf.Max(0.001f, landNoiseScale);
+            float sampleX = (x + seed * 0.211f) * sampleScale;
+            float sampleY = (y - seed * 0.319f) * sampleScale;
+            return Mathf.PerlinNoise(sampleX, sampleY);
+        }
+
+        private float SampleNormalizedLandNoise(int x, int y)
+        {
+            float rawNoise = SampleRawLandNoise(x, y);
+            if (Mathf.Approximately(landNoiseMin, landNoiseMax))
+            {
+                return 0f;
+            }
+
+            return Mathf.InverseLerp(landNoiseMin, landNoiseMax, rawNoise);
         }
 
         public bool IsInsideGrid(int x, int y)
@@ -685,9 +824,30 @@ namespace GridGeneration
                 hash = hash * 31 + seed;
                 hash = hash * 31 + obstaclePercent.GetHashCode();
                 hash = hash * 31 + obstacleNoiseScale.GetHashCode();
+                hash = hash * 31 + landNoiseScale.GetHashCode();
+                hash = hash * 31 + grassDensity.GetHashCode();
                 hash = hash * 31 + minDistance;
                 hash = hash * 31 + baseTileId;
                 hash = hash * 31 + basePrefabId;
+
+                if (tiles != null)
+                {
+                    for (int i = 0; i < tiles.Length; i++)
+                    {
+                        GridTile tile = tiles[i];
+                        if (tile == null || tile.tileType != TileType.Land)
+                        {
+                            continue;
+                        }
+
+                        hash = hash * 31 + tile.GetEntityId().GetHashCode();
+                        if (tile.tilePrefab != null)
+                        {
+                            hash = hash * 31 + tile.tilePrefab.GetEntityId().GetHashCode();
+                        }
+                    }
+                }
+
                 return hash;
             }
         }

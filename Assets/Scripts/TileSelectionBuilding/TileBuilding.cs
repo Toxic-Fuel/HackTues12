@@ -18,6 +18,7 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private Turns turns;
     [SerializeField] private UnityEngine.Camera mainCamera;
     [SerializeField] private InputActionReference buildAction;
+    [SerializeField] private SelectTile selectTile;
 
     [Header("Road Prefabs")]
     [SerializeField] private GameObject roadVerticalPrefab;
@@ -36,12 +37,19 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private float hoverLiftHeight = 0.2f;
     [SerializeField] private float hoverAnimationSpeed = 8f;
 
+    public float HoverLiftHeight => hoverLiftHeight;
+    public float HoverAnimationSpeed => hoverAnimationSpeed;
+
     [Header("Debug")]
     [SerializeField] private bool enableDebugLogs = true;
 
     [Header("Testing")]
     [SerializeField] private bool allowBuildOnAnyTileForTesting = true;
     [SerializeField] private bool bypassTurnAndResourceChecksForTesting = true;
+
+    [Header("Effects")]
+    [SerializeField] GameObject buildEffectPrefab;
+    [SerializeField] private float yEffectOffset = 0.5f;
 
     private GameObject hoveredTile;
     private Vector3 hoveredBasePosition;
@@ -50,11 +58,74 @@ public class TileBuilding : MonoBehaviour
     private readonly HashSet<Vector2Int> cachedConnectedNodes = new HashSet<Vector2Int>();
     private bool connectedNodesDirty = true;
 
+    public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
+    {
+        coordinate = hoveredCoordinate;
+        return hoveredCoordinate.x >= 0 && hoveredCoordinate.y >= 0;
+    }
+
+    public bool TryGetHoveredWorldPosition(out Vector3 worldPosition)
+    {
+        worldPosition = Vector3.zero;
+        if (hoveredCoordinate.x < 0 || hoveredCoordinate.y < 0)
+        {
+            return false;
+        }
+
+        GameObject tileObject = gridMap.GetTileInstanceAt(hoveredCoordinate.x, hoveredCoordinate.y);
+        if (tileObject == null)
+        {
+            return false;
+        }
+
+        worldPosition = tileObject.transform.position;
+        return true;
+    }
+
+    public bool IsRoadAlreadyBuilt(Vector2Int coordinate)
+    {
+        return builtRoads.Contains(coordinate);
+    }
+
+    public bool CanBuildRoadAt(Vector2Int coordinate)
+    {
+        if (!gridMap.IsInsideGrid(coordinate))
+        {
+            return false;
+        }
+
+        if (!CanBuildOnTile(coordinate, out _, out _))
+        {
+            return false;
+        }
+
+        if (!allowBuildOnAnyTileForTesting && !HasConnectedNeighbor(coordinate))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryBuildRoadAt(Vector2Int coordinate)
+    {
+        return TryBuildRoadInternal(coordinate);
+    }
+
     private void Awake()
     {
         if (mainCamera == null)
         {
             mainCamera = UnityEngine.Camera.main;
+        }
+
+        if (selectTile == null)
+        {
+            selectTile = GetComponent<SelectTile>();
+            if (selectTile == null)
+            {
+                selectTile = FindAnyObjectByType<SelectTile>();
+            }
         }
     }
 
@@ -88,6 +159,15 @@ public class TileBuilding : MonoBehaviour
 
     private void UpdateHoveredTile()
     {
+        if (selectTile == null)
+        {
+            selectTile = GetComponent<SelectTile>();
+            if (selectTile == null)
+            {
+                selectTile = FindAnyObjectByType<SelectTile>();
+            }
+        }
+
         if (Mouse.current == null)
         {
             ClearHoveredTile();
@@ -95,6 +175,18 @@ public class TileBuilding : MonoBehaviour
         }
 
         if (!TryGetMouseGridCoordinate(out Vector2Int hoveredCoordinate))
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (selectTile != null && selectTile.IsSelectedCoordinate(hoveredCoordinate))
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (selectTile != null && selectTile.IsRecentlyDeselectedCoordinate(hoveredCoordinate))
         {
             ClearHoveredTile();
             return;
@@ -114,6 +206,12 @@ public class TileBuilding : MonoBehaviour
 
         GameObject tileObject = gridMap.GetTileInstanceAt(hoveredCoordinate.x, hoveredCoordinate.y);
         if (tileObject == null)
+        {
+            ClearHoveredTile();
+            return;
+        }
+
+        if (selectTile != null && (selectTile.IsSelectedCoordinate(hoveredCoordinate) || selectTile.SelectedTile == tileObject))
         {
             ClearHoveredTile();
             return;
@@ -154,19 +252,28 @@ public class TileBuilding : MonoBehaviour
         }
 
         Vector2Int tileCoordinate = hoveredCoordinate;
+        TryBuildRoadInternal(tileCoordinate);
+    }
 
+    private bool TryBuildRoadInternal(Vector2Int tileCoordinate)
+    {
         if (enableDebugLogs)
         {
             Debug.Log($"Build input pressed on ({tileCoordinate.x}, {tileCoordinate.y}).", this);
         }
 
-        if (!CanBuildOnTile(tileCoordinate, out int woodCost, out int stoneCost))
+        if (!CanBuildRoadAt(tileCoordinate))
         {
             if (enableDebugLogs)
             {
                 Debug.Log($"Build blocked: tile ({tileCoordinate.x}, {tileCoordinate.y}) is not buildable.", this);
             }
-            return;
+            return false;
+        }
+
+        if (!CanBuildOnTile(tileCoordinate, out int woodCost, out int stoneCost))
+        {
+            return false;
         }
 
         if (!bypassTurnAndResourceChecksForTesting)
@@ -177,13 +284,13 @@ public class TileBuilding : MonoBehaviour
                 {
                     Debug.Log("Build blocked: no action available this turn.", this);
                 }
-                return;
+                return false;
             }
 
             if (!turns.CanAffordResources(woodCost, stoneCost))
             {
                 Debug.Log($"Not enough resources. Need Wood {woodCost}, Stone {stoneCost}.");
-                return;
+                return false;
             }
 
             if (!turns.TrySpendAction(1))
@@ -192,7 +299,7 @@ public class TileBuilding : MonoBehaviour
                 {
                     Debug.Log("Build blocked: TrySpendAction failed.", this);
                 }
-                return;
+                return false;
             }
 
             if (!turns.TrySpendResources(woodCost, stoneCost))
@@ -201,7 +308,7 @@ public class TileBuilding : MonoBehaviour
                 {
                     Debug.Log("Build blocked: TrySpendResources failed.", this);
                 }
-                return;
+                return false;
             }
         }
 
@@ -211,7 +318,7 @@ public class TileBuilding : MonoBehaviour
             {
                 Debug.Log($"Build blocked: road already exists at ({tileCoordinate.x}, {tileCoordinate.y}).", this);
             }
-            return;
+            return false;
         }
 
         connectedNodesDirty = true;
@@ -226,7 +333,7 @@ public class TileBuilding : MonoBehaviour
 
             builtRoads.Remove(tileCoordinate);
             connectedNodesDirty = true;
-            return;
+            return false;
         }
 
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.up);
@@ -234,9 +341,10 @@ public class TileBuilding : MonoBehaviour
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.down);
         RebuildRoadVisualAt(tileCoordinate + Vector2Int.left);
 
+        SpawnBuildEffectAt(tileCoordinate);
         Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
-
         ClearHoveredTile();
+        return true;
     }
 
     private bool TryGetMouseGridCoordinate(out Vector2Int coordinate)
@@ -347,7 +455,7 @@ public class TileBuilding : MonoBehaviour
             hoveredTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
             if (hoveredTile != null)
             {
-                hoveredBasePosition = hoveredTile.transform.localPosition;
+                hoveredBasePosition = GetFlatBasePosition(hoveredTile.transform.localPosition);
             }
         }
 
@@ -531,7 +639,7 @@ public class TileBuilding : MonoBehaviour
         }
 
         hoveredTile = tileObject;
-        hoveredBasePosition = hoveredTile.transform.localPosition;
+        hoveredBasePosition = GetFlatBasePosition(hoveredTile.transform.localPosition);
         hoveredCoordinate = coordinate;
 
         if (CanBuildOnTile(coordinate, out int woodCost, out int stoneCost) && enableDebugLogs)
@@ -544,7 +652,7 @@ public class TileBuilding : MonoBehaviour
     {
         if (hoveredTile != null)
         {
-            hoveredTile.transform.localPosition = hoveredBasePosition;
+            ResetTileLift(hoveredTile, hoveredBasePosition);
             hoveredTile = null;
         }
 
@@ -553,12 +661,53 @@ public class TileBuilding : MonoBehaviour
 
     private void AnimateTiles()
     {
-        float t = Mathf.Clamp01(Time.deltaTime * hoverAnimationSpeed);
-
         if (hoveredTile != null)
         {
-            Vector3 upTarget = hoveredBasePosition + Vector3.up * hoverLiftHeight;
-            hoveredTile.transform.localPosition = Vector3.Lerp(hoveredTile.transform.localPosition, upTarget, t);
+            AnimateTileLift(hoveredTile, hoveredBasePosition, hoverLiftHeight, hoverAnimationSpeed);
         }
+    }
+
+    public static void ResetTileLift(GameObject tileObject, Vector3 basePosition)
+    {
+        if (tileObject == null)
+        {
+            return;
+        }
+
+        tileObject.transform.localPosition = basePosition;
+    }
+
+    public static void AnimateTileLift(GameObject tileObject, Vector3 basePosition, float liftHeight, float animationSpeed)
+    {
+        if (tileObject == null)
+        {
+            return;
+        }
+
+        float t = Mathf.Clamp01(Time.deltaTime * animationSpeed);
+        Vector3 upTarget = basePosition + Vector3.up * liftHeight;
+        tileObject.transform.localPosition = Vector3.Lerp(tileObject.transform.localPosition, upTarget, t);
+    }
+
+    private static Vector3 GetFlatBasePosition(Vector3 localPosition)
+    {
+        return new Vector3(localPosition.x, 0f, localPosition.z);
+    }
+
+    private void SpawnBuildEffectAt(Vector2Int coordinate)
+    {
+        if (buildEffectPrefab == null)
+        {
+            return;
+        }
+
+        GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (tileInstance == null)
+        {
+            return;
+        }
+
+        Vector3 spawnPosition = tileInstance.transform.position + Vector3.up * yEffectOffset;
+        Instantiate(buildEffectPrefab, spawnPosition, Quaternion.identity);
     }
 }
