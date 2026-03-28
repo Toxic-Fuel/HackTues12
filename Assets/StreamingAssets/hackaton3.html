@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>🌾 Селото Живее</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --grass: #6dbb4b;
+  --grass-dark: #4c8f35;
+  --grass-light: #9edb6d;
+
+  --sky: #87ceeb;
+
+  --ui-bg: #f4e6c8;
+  --ui-border: #3a2a1a;
+
+  --accent: #ffd34d;
+  --accent-dark: #caa12f;
+
+  --text: #2b1b0f;
+}
+
+body {
+  margin: 0;
+  font-family: 'VT323', monospace;
+  background: linear-gradient(var(--grass), var(--grass-dark));
+  color: var(--text);
+}
+
+.sky-header {
+  background: linear-gradient(to bottom, #5aa4d6, #87ceeb, #c2f0ff);
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.game-title {
+  font-family: 'Press Start 2P';
+  font-size: 24px;
+  color: #ffd34d;
+  text-shadow: 3px 3px #000;
+}
+
+.subtitle {
+  font-size: 22px;
+  margin-top: 10px;
+}
+
+.main-bg {
+  padding: 40px 20px;
+  background:
+    linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px),
+    linear-gradient(var(--grass), var(--grass-dark));
+  background-size: 32px 32px, 32px 32px, auto;
+}
+
+.container {
+  max-width: 1000px;
+  margin: auto;
+}
+
+.section-title {
+  font-family: 'Press Start 2P';
+  font-size: 14px;
+  text-align: center;
+  margin: 30px 0 20px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background: var(--ui-bg);
+  border: 4px solid var(--ui-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 0 var(--ui-border);
+  padding: 16px;
+  position: relative;
+  transition: 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 0 var(--ui-border);
+}
+
+.card::after {
+  content: '▶';
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  opacity: 0;
+}
+
+.card:hover::after {
+  opacity: 1;
+}
+
+.card-title {
+  font-family: 'Press Start 2P';
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+
+.card-desc {
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.btn {
+  margin-top: 10px;
+  display: inline-block;
+  font-family: 'Press Start 2P';
+  font-size: 9px;
+  padding: 10px 14px;
+  background: var(--accent);
+  border: 3px solid var(--ui-border);
+  text-decoration: none;
+  color: #2b1b0f;
+  box-shadow: 0 4px 0 var(--accent-dark);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--accent-dark);
+}
+
+.btn::after {
+  content: " ↗";
+  font-size: 10px;
+}
+
+.footer {
+  text-align: center;
+  padding: 30px;
+  background: #2b1b0f;
+  color: #f4e6c8;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sky-header">
+  <div class="game-title">🌾 СЕЛОТО ЖИВЕЕ 🌾</div>
+  <div class="subtitle">Помогни на селата да оживеят</div>
+</div>
+
+<div class="main-bg">
+<div class="container">
+
+<div class="section-title">🏠 МИСИИ В БЪЛГАРИЯ</div>
+
+<div class="cards-grid">
+
+<div class="card">
+  <div class="card-title">BABA RESIDENCE</div>
+  <div class="card-desc">Живей в село и помагай на възрастни хора.</div>
+  <a href="https://ideasfactorybg.org/baba-residence/" target="_blank" class="btn">🛠 JOIN QUEST</a>
+</div>
+
+<div class="card">
+  <div class="card-title">PROEKT SEVEROZAPAD</div>
+  <div class="card-desc">Работят за това, хората от Северозапада да живеят достойно!.</div>
+  <a href="http://severozapad.net/about-us.html" target="_blank" class="btn">🛠 JOIN QUEST</a>
+</div>
+
+<div class="card">
+  <div class="card-title">LIGHT OF BULGARIA</div>
+  <div class="card-desc">Помощ за възрастни хора в изолирани села.</div>
+  <a href="https://borgenproject.org/charities-operating-in-bulgaria/" target="_blank" class="btn">🎁 DONATE</a>
+</div>
+
+<div class="card">
+  <div class="card-title">ИМОТ ПОД НАЕМ - БЕЗ НАЕМ!</div>
+  <div class="card-desc">Подтиква хора да се сближават със старци.</div>
+  <a href="https://balkaninsight.com/2016/05/02/bulgarians-eye-way-to-revive-empty-villages-04-29-2016/bi/all-balkan-countries/" target="_blank" class="btn">🎁 DONATE</a>
+</div>
+
+</div>
+
+<div class="section-title">🌍 GLOBAL MISSIONS</div>
+
+<div class="cards-grid">
+
+<div class="card">
+  <div class="card-title">VILLAGE ENTERPRISE</div>
+  <div class="card-desc">Създава бизнеси в бедни села.</div>
+  <a href="https://villageenterprise.org/donate/" target="_blank" class="btn">🎁 DONATE</a>
+</div>
+
+<div class="card">
+  <div class="card-title">GIVE DIRECTLY</div>
+  <div class="card-desc">Пари директно към хората.</div>
+  <a href="https://www.givedirectly.org/donate/" target="_blank" class="btn">💸 DIRECT</a>
+</div>
+
+<div class="card">
+  <div class="card-title">HEIFER INTL</div>
+  <div class="card-desc">Подкрепя фермери с ресурси и животни.</div>
+  <a href="https://www.heifer.org/give.html" target="_blank" class="btn">🌱 DONATE</a>
+</div>
+
+<div class="card">
+  <div class="card-title">CARE INTL</div>
+  <div class="card-desc">Финансова помощ и образование.</div>
+  <a href="https://www.care.org/donate/" target="_blank" class="btn">🎁 DONATE</a>
+</div>
+
+</div>
+
+</div>
+</div>
+
+<div class="footer">
+  ❤️ Направено за всяко забравено селце
+</div>
+
+</body>
+</html>
