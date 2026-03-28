@@ -41,9 +41,13 @@ public class Turns : MonoBehaviour
     [SerializeField, Min(0)] private int woodPerConnectedVillage = 1;
     [SerializeField, Min(0)] private int stonePerConnectedVillage = 1;
 
+    [Header("Connected Village Reward")]
+    [SerializeField, Min(0)] private int turnsPerConnectedVillage = 5;
+
     private int _currentTurn;
     private int _currentWood;
     private int _currentStone;
+    private int _lastRewardedConnectedVillageCount;
 
     private int CurrentTurn
     {
@@ -223,6 +227,9 @@ public class Turns : MonoBehaviour
         CurrentStone = Mathf.Max(0, startingStone);
         State = TurnState.PlayerTurn;
 
+        // Baseline existing connections so rewards are only for newly connected villages.
+        _lastRewardedConnectedVillageCount = GetConnectedVillageCount();
+
         EncounterStarted?.Invoke(this);
         BeginPlayerTurn();
     }
@@ -372,6 +379,15 @@ public class Turns : MonoBehaviour
 
     private void OnRoadPlaced()
     {
+        int connectedVillageCount = GetConnectedVillageCount();
+        int newlyConnectedVillages = Mathf.Max(0, connectedVillageCount - _lastRewardedConnectedVillageCount);
+
+        if (newlyConnectedVillages > 0)
+        {
+            RemainingTurns += newlyConnectedVillages * Mathf.Max(0, turnsPerConnectedVillage);
+            _lastRewardedConnectedVillageCount = connectedVillageCount;
+        }
+
         RefreshUI();
     }
 
