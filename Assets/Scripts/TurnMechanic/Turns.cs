@@ -300,7 +300,7 @@ public class Turns : MonoBehaviour
             return;
         }
 
-        resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns);
+        resourceTurnsUI.UpdateTexts(CurrentWood, CurrentStone, RemainingTurns, Mathf.Max(0, woodPerTurn), Mathf.Max(0, stonePerTurn));
     }
 
     private void SetLoseState()

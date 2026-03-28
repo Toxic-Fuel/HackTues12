@@ -7,6 +7,7 @@ namespace QuestSystem
         public string questName;
         public string description;
         [SerializeField] private Turns turns;
+        [SerializeField] private AudioSource completionAudioSource;
         [SerializeField] private int rewardWoodPerTurn, rewardStonePerTurn;
         [SerializeField] private int woodCost, stoneCost, turnCost;
 
@@ -63,6 +64,11 @@ namespace QuestSystem
 
             turns.AddPerTurnResources(rewardWoodPerTurn, rewardStonePerTurn);
             _isCompleted = true;
+
+            if (completionAudioSource != null)
+            {
+                completionAudioSource.Play();
+            }
         }
     }
 }

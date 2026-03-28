@@ -5,7 +5,7 @@ public class CameraRightClick : MonoBehaviour
 {
     [SerializeField] private float rotationSpeed = 0.2f;
     [SerializeField] private float rotationSmoothing = 0.05f;
-    [SerializeField] private float minVerticalRotation = 0f;
+    [SerializeField] private float minVerticalRotation = 9.5f;
     [SerializeField] private float maxVerticalRotation = 89.9f;
     [SerializeField] private SelectTile selectTile;
 
