@@ -3,14 +3,27 @@ using UnityEngine;
 
 public class ResourceTurnsUI : MonoBehaviour
 {
-    [SerializeField] private TMP_Text woodText, stoneText, turnsText;
-    [SerializeField] private TMP_Text woodPerTurnText, stonePerTurnText;
+    [Header("Resource Icons")]
+    [SerializeField] private Sprite[] sprites;
+    
+    [Header("Prefabs")]
+    [SerializeField] private GameObject CurrentResourcePrefab;
+    [SerializeField] private GameObject ResourcesPerTurnPrefab;
 
-    public void UpdateTexts(int wood, int stone, int turns, int woodPerTurn, int stonePerTurn)
+    [Header("UI References")]
+    [SerializeField] private TMP_Text turnsText;
+    [SerializeField] private GameObject CurrentResourcesParent;
+    [SerializeField] private GameObject ResourcesPerTurnParent;
+
+    private TMP_Text[] currentResourcesTexts;
+    private TMP_Text[] resourcesPerTurnTexts;
+    public void UpdateTexts(int[] currentResources, int[] resourcesPerTurn)
     {
-        woodText.text = wood.ToString();
-        stoneText.text = stone.ToString();
-        turnsText.text = turns.ToString();
+        for (int resourceIndex = 0; resourceIndex < currentResources.Length-1; resourceIndex++)
+        {
+            currentResourcesTexts[resourceIndex].text = currentResources[resourceIndex+1].ToString();
+        }
+        turnsText.text = currentResources[(int)ResourceType.Turn].ToString();
 
         if (woodPerTurnText != null)
         {
