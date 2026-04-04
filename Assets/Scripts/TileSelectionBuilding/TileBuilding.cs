@@ -2,6 +2,7 @@ using GridGeneration;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 
 public class TileBuilding : MonoBehaviour
@@ -78,6 +79,9 @@ public class TileBuilding : MonoBehaviour
     public event Action RoadPlaced;
     public event Action<Vector2Int> RoadBuiltAt;
     public event Action<Vector2Int> StructureBuiltAt;
+
+    [SerializeField] private UnityEvent onRoadPlaced;
+    [SerializeField] private UnityEvent onBuildingPlaced;
 
     public bool TryGetHoveredCoordinate(out Vector2Int coordinate)
     {
@@ -195,6 +199,7 @@ public class TileBuilding : MonoBehaviour
     public void NotifyStructureBuiltAt(Vector2Int coordinate)
     {
         StructureBuiltAt?.Invoke(coordinate);
+        onBuildingPlaced?.Invoke();
     }
 
     private void Awake()
@@ -413,6 +418,7 @@ public class TileBuilding : MonoBehaviour
         UpdateConnectedVillageCounter();
         RoadPlaced?.Invoke();
         RoadBuiltAt?.Invoke(tileCoordinate);
+        onRoadPlaced?.Invoke();
 
         SpawnBuildEffectAt(tileCoordinate);
         //Debug.Log($"Built road at ({tileCoordinate.x}, {tileCoordinate.y}) | Cost: W{woodCost} S{stoneCost}");
