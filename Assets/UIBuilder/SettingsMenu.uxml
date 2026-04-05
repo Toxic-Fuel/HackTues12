@@ -1,0 +1,42 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UIBuilder/SettingsMenu.uss?fileID=7433441132597879392&amp;guid=2354899a09cf464c84f459c7b98871ba&amp;type=3#SettingsMenu"/>
+    <ui:VisualElement name="SettingsMenu" tabindex="0" class="settings-menu-overlay" style="transform-origin: center; scale: 2 2 2;">
+        <ui:VisualElement name="PopupPanel" class="settings-popup-panel" style="background-size: 100% 100%; width: 400px; scale: 1 1;">
+            <ui:Label text="Options" name="OptionsTitle" enabled="true" class="options-title"/>
+            <ui:Button text="X" name="CloseButton" class="settings-close-button"/>
+            <ui:VisualElement name="SoundsGroup" class="settings-group spaced-group">
+                <ui:Label text="Sounds" name="SoundsSubtitle" class="group-subtitle"/>
+                <ui:VisualElement name="SFXRow" class="setting-row spaced-row">
+                    <ui:Label text="SFX" name="SFXLabel" class="setting-label"/>
+                    <ui:SliderInt name="SFXSlider" low-value="0" high-value="100" value="100" class="setting-control"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="MusicRow" class="setting-row">
+                    <ui:Label text="Music" name="MusicLabel" class="setting-label"/>
+                    <ui:SliderInt name="MusicSlider" low-value="0" high-value="100" value="100" class="setting-control"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="SensitivityGroup" class="settings-group spaced-group">
+                <ui:Label text="Sensitivity" name="SensitivitySubtitle" class="group-subtitle"/>
+                <ui:VisualElement name="MoveSensitivityRow" class="setting-row spaced-row">
+                    <ui:Label text="Movement" name="MoveSensitivityLabel" class="setting-label"/>
+                    <ui:Slider name="MoveSensitivitySlider" low-value="0.1" high-value="2" value="1" class="setting-control"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="ZoomSensitivityRow" class="setting-row">
+                    <ui:Label text="Zoom" name="ZoomSensitivityLabel" class="setting-label"/>
+                    <ui:Slider name="ZoomSensitivitySlider" low-value="0.1" high-value="2" value="1" class="setting-control"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="QualityGroup" class="settings-group">
+                <ui:Label text="Quality" name="QualitySubtitle" class="group-subtitle"/>
+                <ui:VisualElement name="TexturesRow" class="setting-row spaced-row">
+                    <ui:Label text="Textures" name="TexturesLabel" class="setting-label"/>
+                    <ui:DropdownField name="TexturesDropdown" index="1" choices="Low,Medium,High" class="setting-control"/>
+                </ui:VisualElement>
+                <ui:VisualElement name="ShadowsRow" class="setting-row">
+                    <ui:Label text="Shadows" name="ShadowsLabel" class="setting-label"/>
+                    <ui:DropdownField name="ShadowsDropdown" index="2" choices="Off,Low,High" class="setting-control"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

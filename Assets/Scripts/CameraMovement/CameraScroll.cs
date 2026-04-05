@@ -19,6 +19,7 @@ public class CameraScroll : MonoBehaviour
     [SerializeField] private InputActionReference touch1PositionAction;
     [SerializeField] private InputActionReference movePressAction;
 
+    public float settingsZoomSpeed = 1.0f;
     private Vector3 zoomDirectionLocal;
     private float currentDistance;
     private float targetDistance;
@@ -109,7 +110,7 @@ public class CameraScroll : MonoBehaviour
             return 0f;
         }
 
-        return scrollAction.action.ReadValue<Vector2>().y * scrollSpeed;
+        return scrollAction.action.ReadValue<Vector2>().y * scrollSpeed * settingsZoomSpeed;
     }
 
     private float ReadPinchDelta()
@@ -135,7 +136,7 @@ public class CameraScroll : MonoBehaviour
             return 0f;
         }
 
-        float pinchDelta = (currentPinchDistance - lastPinchDistance) * pinchSpeed;
+        float pinchDelta = (currentPinchDistance - lastPinchDistance) * pinchSpeed * settingsZoomSpeed;
         lastPinchDistance = currentPinchDistance;
         return pinchDelta;
     }

@@ -1,0 +1,136 @@
+﻿.settings-menu-overlay {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.settings-popup-panel {
+    position: relative;
+    width: 460px;
+    max-width: 90%;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    background-image: url("project://database/Assets/Texture/BACKGORUNDTILED.png?fileID=2800000&guid=0a7e11f3cbc595943a925af597caf920&type=3#BACKGORUNDTILED");
+
+    /* Use 9-slice tiling for bordered textures: fixed corners + tiled center. */
+    background-repeat: no-repeat;
+    -unity-slice-type: tiled;
+    -unity-slice-scale: 0.75;
+
+    /* Match these slice values to your texture's border pixels if needed. */
+    -unity-slice-left: 28;
+    -unity-slice-right: 28;
+    -unity-slice-top: 28;
+    -unity-slice-bottom: 28;
+
+    background-color: rgb(35, 35, 40);
+}
+
+.settings-close-button {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    width: 26px;
+    height: 26px;
+    padding-left: 0;
+    padding-right: 0;
+    -unity-text-align: middle-center;
+    color: #42441B;
+    background-color: #ADB784;
+}
+
+.options-title {
+    -unity-font-style: bold;
+    font-size: 20px;
+    margin-bottom: 12px;
+    -unity-text-align: middle-center;
+    color: #42441B;
+}
+
+.settings-group {
+    flex-direction: column;
+}
+
+.spaced-group {
+    margin-bottom: 14px;
+}
+
+.group-subtitle {
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+    -unity-text-align: middle-center;
+    color: #42441B;
+}
+
+.setting-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.spaced-row {
+    margin-bottom: 6px;
+}
+
+.setting-label {
+    width: 90px;
+    color: #42441B;
+}
+
+.setting-control {
+    flex-grow: 1;
+}
+
+/* Ensure all text in the popup uses black by default. */
+.settings-popup-panel {
+    color: black;
+}
+
+/* Dropdown input background tint. */
+.setting-control.unity-popup-field .unity-base-field__input,
+.setting-control.unity-base-popup-field .unity-base-field__input,
+.setting-control .unity-base-popup-field__input {
+    background-color: #ADB784;
+    color: black;
+}
+
+/* Keep slider field/input transparent. */
+.setting-control.unity-base-slider .unity-base-field__input,
+.setting-control.unity-slider .unity-base-field__input {
+    background-color: transparent;
+    background-image: none;
+    border-color: transparent;
+}
+
+/* Transparent slider control rect (outside the bar/track). */
+.setting-control.unity-base-slider,
+.setting-control.unity-slider,
+.setting-control.unity-base-field.unity-base-slider {
+    background-color: transparent;
+    background-image: none;
+    border-color: transparent;
+}
+
+/* Restore visible slider bar and progress fill. */
+.setting-control.unity-base-slider .unity-base-slider__tracker,
+.setting-control.unity-slider .unity-slider__tracker {
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.setting-control.unity-base-slider .unity-base-slider__dragger-connector,
+.setting-control.unity-slider .unity-slider__dragger-connector {
+    background-color: #ADB784;
+}
+
+/* Slider handle tint (works across common UI Toolkit class variants). */
+.setting-control.unity-base-slider .unity-base-slider__dragger,
+.setting-control.unity-slider .unity-slider__dragger {
+    background-color: #ADB784;
+}
+

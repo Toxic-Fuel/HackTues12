@@ -17,6 +17,7 @@ public class CameraLeftClick : MonoBehaviour
     private Vector2 smoothedDelta;
     private Vector2 deltaVelocity;
     private Vector2 dragPressScreenPosition;
+    public float settingsDragSensitivity = 1.0f;
     [SerializeField] private SelectTile selectTile;
 
     private void OnEnable()
@@ -80,8 +81,8 @@ public class CameraLeftClick : MonoBehaviour
 
     private void MoveCamera(Vector2 mouseDelta)
     {
-        float moveX = -mouseDelta.x * dragSensitivity;
-        float moveZ = -mouseDelta.y * dragSensitivity;
+        float moveX = -mouseDelta.x * dragSensitivity * settingsDragSensitivity;
+        float moveZ = -mouseDelta.y * dragSensitivity * settingsDragSensitivity;
 
         Vector3 forward = transform.forward;
         Vector3 right = transform.right;
