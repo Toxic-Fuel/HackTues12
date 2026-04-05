@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace ScoreSystem
@@ -24,12 +23,22 @@ namespace ScoreSystem
             set => scoreValue = value;
         }
 
-        public void AddToScore(float value, ScoreType type = ScoreType.Default)
+        public void AddToScore(float value)
+        {
+            AddToScore(value, ScoreType.Default);
+        }
+
+        public void AddToScore(float value, ScoreType type)
         {
             var multiplier = scoreMultipliers[(int)type];
             var delta = Mathf.RoundToInt(value * multiplier);
             scoreValue = Mathf.Max(0, scoreValue + delta);
         }
+
+        // UnityEvent-friendly wrappers.
+        public void AddDefaultScore(float value) => AddToScore(value, ScoreType.Default);
+        public void AddTimeScore(float value) => AddToScore(value, ScoreType.Time);
+        public void AddBuildingScore(float value) => AddToScore(value, ScoreType.Buildings);
         
         public void CalculateEndScore()
         {
