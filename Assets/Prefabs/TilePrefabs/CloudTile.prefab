@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3554888300010766992}
-  - component: {fileID: 2316119847707260553}
   m_Layer: 0
   m_Name: CloudTile
   m_TagString: Untagged
@@ -33,20 +32,6 @@ Transform:
   - {fileID: 4230818703874537315}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2316119847707260553
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9041468413012352844}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b7f9187d59e48c408c5d58f5c33cd33, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RotateOnSpawn
-  angleStep: 90
-  axis: 1
 --- !u!1001 &4412501032399556744
 PrefabInstance:
   m_ObjectHideFlags: 0

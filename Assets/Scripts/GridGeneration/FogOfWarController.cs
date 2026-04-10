@@ -12,7 +12,9 @@ public class FogOfWarController : MonoBehaviour
     [SerializeField] private GameObject fogTilePrefab;
     [SerializeField, Min(0)] private int revealRadius = 1;
     [SerializeField] private bool hideUnrevealedTileVisuals = true;
+    [SerializeField, Range(0f, 359f)] private float fogBaseYaw = 0f;
     [SerializeField] private bool randomizeFogRotation = true;
+    [SerializeField] private bool use90DegreeYawSteps = true;
     [SerializeField] private Vector2 fogYawRange = new Vector2(0f, 360f);
 
     [Header("Reveal Animation")]
@@ -237,14 +239,26 @@ public class FogOfWarController : MonoBehaviour
 
     private void ApplyRandomRotation(Transform fogTransform)
     {
-        if (!randomizeFogRotation || fogTransform == null)
+        if (fogTransform == null)
         {
             return;
         }
 
-        Vector3 currentEuler = fogTransform.eulerAngles;
-        float randomYaw = Random.Range(fogYawRange.x, fogYawRange.y);
-        fogTransform.rotation = Quaternion.Euler(currentEuler.x, randomYaw, currentEuler.z);
+        float randomYaw = 0f;
+        if (randomizeFogRotation)
+        {
+            if (use90DegreeYawSteps)
+            {
+                randomYaw = Random.Range(0, 4) * 90f;
+            }
+            else
+            {
+                randomYaw = Random.Range(fogYawRange.x, fogYawRange.y);
+            }
+        }
+
+        // Keep fog flat on the map and only rotate around Y.
+        fogTransform.rotation = Quaternion.Euler(0f, fogBaseYaw + randomYaw, 0f);
     }
 
     private IEnumerator AnimateRevealAndHide(GameObject fogInstance)
