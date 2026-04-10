@@ -35,6 +35,7 @@ public class Turns : MonoBehaviour
     [Header("UI")]
     [SerializeField] private ResourceTurnsUI resourceTurnsUI;
     [SerializeField] private ResourceTurnsUIDocument resourceTurnsUIDocument;
+    [SerializeField] private bool useLegacyUIAlongsideUIToolkit = false;
     [SerializeField] private TileBuilding tileBuilding;
 
     [Header("Win Lose Con")]
@@ -194,6 +195,11 @@ public class Turns : MonoBehaviour
 
     private void Awake()
     {
+        if (resourceTurnsUIDocument != null && resourceTurnsUI != null && !useLegacyUIAlongsideUIToolkit)
+        {
+            resourceTurnsUI.gameObject.SetActive(false);
+        }
+
         ActionsRemaining = Mathf.Max(0, actionsPerTurn);
 
         if (autoStartOnAwake)
@@ -438,7 +444,10 @@ public class Turns : MonoBehaviour
             displayedResourcePerTurn[resourceIndex] = Mathf.Max(0, resourcesPerTurn[resourceIndex]) + villageBonuses[resourceIndex];
         }
 
-        if (resourceTurnsUI != null)
+        bool shouldUpdateLegacyUI = resourceTurnsUI != null
+            && (resourceTurnsUIDocument == null || useLegacyUIAlongsideUIToolkit);
+
+        if (shouldUpdateLegacyUI)
         {
             resourceTurnsUI.UpdateTexts(CurrentResources, displayedResourcePerTurn, RemainingTurns);
         }

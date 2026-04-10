@@ -1,4 +1,5 @@
 using GridGeneration;
+using System.Collections;
 using UnityEngine;
 
 public class FogOfWarController : MonoBehaviour
@@ -11,6 +12,13 @@ public class FogOfWarController : MonoBehaviour
     [SerializeField] private GameObject fogTilePrefab;
     [SerializeField, Min(0)] private int revealRadius = 1;
     [SerializeField] private bool hideUnrevealedTileVisuals = true;
+    [SerializeField] private bool randomizeFogRotation = true;
+    [SerializeField] private Vector2 fogYawRange = new Vector2(0f, 360f);
+
+    [Header("Reveal Animation")]
+    [SerializeField] private bool animateReveal = true;
+    [SerializeField, Min(0f)] private float revealAnimationDuration = 0.22f;
+    [SerializeField] private AnimationCurve revealScaleCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
     private GameObject[,] fogInstances;
     private bool[,] revealedTiles;
@@ -158,6 +166,7 @@ public class FogOfWarController : MonoBehaviour
 
                 GameObject fogInstance = Instantiate(fogTilePrefab, tileInstance.transform.position, Quaternion.identity, gridMap.transform);
                 fogInstance.name = $"Fog_{x}_{y}";
+                ApplyRandomRotation(fogInstance.transform);
                 fogInstances[x, y] = fogInstance;
             }
         }
@@ -215,6 +224,58 @@ public class FogOfWarController : MonoBehaviour
         GameObject fogInstance = fogInstances[coordinate.x, coordinate.y];
         if (fogInstance != null)
         {
+            if (animateReveal && Application.isPlaying && revealAnimationDuration > 0f)
+            {
+                StartCoroutine(AnimateRevealAndHide(fogInstance));
+            }
+            else
+            {
+                fogInstance.SetActive(false);
+            }
+        }
+    }
+
+    private void ApplyRandomRotation(Transform fogTransform)
+    {
+        if (!randomizeFogRotation || fogTransform == null)
+        {
+            return;
+        }
+
+        Vector3 currentEuler = fogTransform.eulerAngles;
+        float randomYaw = Random.Range(fogYawRange.x, fogYawRange.y);
+        fogTransform.rotation = Quaternion.Euler(currentEuler.x, randomYaw, currentEuler.z);
+    }
+
+    private IEnumerator AnimateRevealAndHide(GameObject fogInstance)
+    {
+        if (fogInstance == null)
+        {
+            yield break;
+        }
+
+        Transform fogTransform = fogInstance.transform;
+        Vector3 initialScale = fogTransform.localScale;
+        float elapsed = 0f;
+
+        while (elapsed < revealAnimationDuration)
+        {
+            if (fogInstance == null)
+            {
+                yield break;
+            }
+
+            float t = Mathf.Clamp01(elapsed / revealAnimationDuration);
+            float scale = revealScaleCurve.Evaluate(t);
+            fogTransform.localScale = initialScale * scale;
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (fogInstance != null)
+        {
+            fogTransform.localScale = initialScale;
             fogInstance.SetActive(false);
         }
     }
