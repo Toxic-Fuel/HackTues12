@@ -34,6 +34,14 @@ public class CameraRightClick : MonoBehaviour
 
     private void Update()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            isDragging = false;
+            smoothedDelta = Vector2.zero;
+            deltaVelocity = Vector2.zero;
+            return;
+        }
+
         if (mouse == null)
             return;
 

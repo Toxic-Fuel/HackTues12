@@ -210,6 +210,11 @@ public class Turns : MonoBehaviour
 
     private void Update()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            return;
+        }
+
         if (State != TurnState.PlayerTurn)
         {
             return;

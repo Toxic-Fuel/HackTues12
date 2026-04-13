@@ -83,6 +83,11 @@ public class SelectTile : MonoBehaviour
 
     private void Update()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            return;
+        }
+
         if (gridMap == null || mainCamera == null)
         {
             return;

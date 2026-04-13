@@ -36,6 +36,12 @@ public class CameraLeftClick : MonoBehaviour
 
     private void HandleDragInput()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            ResetDragState();
+            return;
+        }
+
         if (mouse == null)
             return;
 

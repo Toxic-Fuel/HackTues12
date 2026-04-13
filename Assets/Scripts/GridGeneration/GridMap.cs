@@ -69,6 +69,61 @@ namespace GridGeneration
         private float landNoiseMax;
         private float[] nonGrassVariantThresholds;
 
+        public float ObstaclePercent
+        {
+            get => obstaclePercent;
+            set => obstaclePercent = Mathf.Clamp01(value);
+        }
+
+        public bool LimitMineSourceTiles
+        {
+            get => limitMineSourceTiles;
+            set => limitMineSourceTiles = value;
+        }
+
+        public float MaxMineSourcePercent
+        {
+            get => maxMineSourcePercent;
+            set => maxMineSourcePercent = Mathf.Clamp01(value);
+        }
+
+        public int MinMineSourceTiles
+        {
+            get => minMineSourceTiles;
+            set => minMineSourceTiles = Mathf.Max(0, value);
+        }
+
+        public bool GuaranteeStarterResourceNodes
+        {
+            get => guaranteeStarterResourceNodes;
+            set => guaranteeStarterResourceNodes = value;
+        }
+
+        public int StarterResourceMinDistanceFromCity
+        {
+            get => starterResourceMinDistanceFromCity;
+            set
+            {
+                starterResourceMinDistanceFromCity = Mathf.Max(1, value);
+                if (starterResourceRadius < starterResourceMinDistanceFromCity)
+                {
+                    starterResourceRadius = starterResourceMinDistanceFromCity;
+                }
+            }
+        }
+
+        public int StarterResourceRadius
+        {
+            get => starterResourceRadius;
+            set => starterResourceRadius = Mathf.Max(StarterResourceMinDistanceFromCity, value);
+        }
+
+        public bool PreserveNearestMineSourceToCity
+        {
+            get => preserveNearestMineSourceToCity;
+            set => preserveNearestMineSourceToCity = value;
+        }
+
         private struct NodeEdge
         {
             public int from;
@@ -883,8 +938,24 @@ namespace GridGeneration
             float sampleX = (x + seed * 0.137f) * sampleScale;
             float sampleY = (y - seed * 0.173f) * sampleScale;
             float noiseValue = Mathf.PerlinNoise(sampleX, sampleY);
-            int obstacleIndex = Mathf.Clamp(Mathf.FloorToInt(noiseValue * obstacleTiles.Count), 0, obstacleTiles.Count - 1);
+
+            // Blend low-frequency Perlin with a deterministic hash so one variant does not dominate on some seeds.
+            float hashValue = DeterministicUnitValue(x, y, seed);
+            float mixedValue = Mathf.Lerp(noiseValue, hashValue, 0.6f);
+            int obstacleIndex = Mathf.Clamp(Mathf.FloorToInt(mixedValue * obstacleTiles.Count), 0, obstacleTiles.Count - 1);
             return obstacleTiles[obstacleIndex];
+        }
+
+        private static float DeterministicUnitValue(int x, int y, int seedValue)
+        {
+            unchecked
+            {
+                int hash = x * 73856093;
+                hash ^= y * 19349663;
+                hash ^= seedValue * 83492791;
+                hash &= 0x7fffffff;
+                return hash / (float)int.MaxValue;
+            }
         }
 
         private GridTile SelectLandTileForCoordinate(int x, int y, List<GridTile> landTiles)

@@ -74,6 +74,12 @@ public class CameraHoldMove : MonoBehaviour
 
     private void HandleDragInput()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            ResetDragState();
+            return;
+        }
+
         if (inputSuppressed)
         {
             ResetDragState();

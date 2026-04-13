@@ -24,6 +24,12 @@ public class CameraWASD : MonoBehaviour
 
     private void Update()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            movementDirection = Vector3.zero;
+            return;
+        }
+
         HandleMovementInput();
         MoveCamera();
     }

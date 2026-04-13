@@ -210,6 +210,13 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private void Update()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            SetPanelVisible(false);
+            SetQuestPanelVisible(false);
+            return;
+        }
+
         if (tileBuilding == null || gridMap == null || panelRoot == null)
         {
             SetPanelVisible(false);

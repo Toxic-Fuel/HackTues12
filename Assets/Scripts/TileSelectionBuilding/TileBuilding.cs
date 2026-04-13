@@ -242,6 +242,13 @@ public class TileBuilding : MonoBehaviour
 
     private void Update()
     {
+        if (InGameGenerationMenu.IsAnyMenuOpen)
+        {
+            ClearHoveredTile();
+            AnimateTiles();
+            return;
+        }
+
         if (gridMap == null || mainCamera == null)
         {
             return;
