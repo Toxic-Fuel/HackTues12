@@ -1,5 +1,6 @@
 using GridGeneration;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class InGameGenerationMenu : MonoBehaviour
@@ -64,7 +65,16 @@ public class InGameGenerationMenu : MonoBehaviour
         {
             if (instance != null && instance != this)
             {
-                Destroy(gameObject);
+                bool hostsEventSystem = GetComponent<EventSystem>() != null || GetComponent<BaseInputModule>() != null;
+                if (hostsEventSystem)
+                {
+                    Destroy(this);
+                }
+                else
+                {
+                    Destroy(gameObject);
+                }
+
                 return;
             }
 
