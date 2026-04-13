@@ -537,7 +537,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5886971644081185204, guid: 3cff4637741b3ed46ae27417bcf1015d, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 130
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 8920850594686331029, guid: 3cff4637741b3ed46ae27417bcf1015d, type: 3}
       propertyPath: m_IsActive
@@ -1023,9 +1023,9 @@ MonoBehaviour:
   showOnStart: 0
   persistAcrossScenes: 1
   blockGameplayInputWhileOpen: 1
+  mainMenuOnlyUntilGridMapFound: 1
   showFloatingToggleButton: 1
   floatingButtonSize: {x: 140, y: 58}
-  floatingButtonMargin: {x: 12, y: 12}
   autoFindGridMap: 1
   autoApplyPendingChangesWhenGridMapAppears: 1
   windowTitleFontSize: 28
