@@ -48,12 +48,18 @@ public class InGameGenerationMenu : MonoBehaviour
     [SerializeField] private Color menuSliderThumbColor = new Color(0.24f, 0.28f, 0.17f, 1f);
     [SerializeField] private Color menuOutlineColor = new Color(0.06f, 0.06f, 0.06f, 1f);
     [SerializeField, Range(1f, 8f)] private float menuOutlineThickness = 3f;
-    [SerializeField] private Color floatingButtonBaseColor = new Color(0.52f, 0.58f, 0.36f, 1f);
-    [SerializeField] private Color floatingButtonHoverColor = new Color(0.60f, 0.66f, 0.42f, 1f);
-    [SerializeField] private Color floatingButtonActiveColor = new Color(0.34f, 0.41f, 0.24f, 1f);
-    [SerializeField] private Color floatingButtonTextColor = new Color(0.08f, 0.08f, 0.08f, 1f);
-    [SerializeField] private Color floatingButtonAccentColor = new Color(0.84f, 0.83f, 0.67f, 1f);
-    [SerializeField] private Color floatingButtonShadowColor = new Color(0f, 0f, 0f, 0.35f);
+    [SerializeField] private Color floatingButtonBaseColor = new Color(0.88f, 0.87f, 0.80f, 1f);
+    [SerializeField] private Color floatingButtonHoverColor = new Color(0.93f, 0.92f, 0.85f, 1f);
+    [SerializeField] private Color floatingButtonActiveColor = new Color(0.76f, 0.79f, 0.62f, 1f);
+    [SerializeField] private Color floatingButtonOuterBorderColor = new Color(0.17f, 0.20f, 0.12f, 1f);
+    [SerializeField] private Color floatingButtonInnerBorderColor = new Color(0.60f, 0.65f, 0.44f, 1f);
+    [SerializeField] private Color floatingButtonTextColor = new Color(0.10f, 0.11f, 0.07f, 1f);
+    [SerializeField, Range(18f, 40f)] private float toggleBoxSize = 24f;
+    [SerializeField] private Color toggleBoxColor = new Color(0.92f, 0.91f, 0.84f, 1f);
+    [SerializeField] private Color toggleBoxHoverColor = new Color(0.96f, 0.95f, 0.89f, 1f);
+    [SerializeField] private Color toggleBoxCheckedColor = new Color(0.72f, 0.77f, 0.55f, 1f);
+    [SerializeField] private Color toggleBoxBorderColor = new Color(0.22f, 0.26f, 0.16f, 1f);
+    [SerializeField] private Color toggleCheckmarkColor = new Color(0.08f, 0.09f, 0.06f, 1f);
 
     [Header("Regeneration")]
     [SerializeField] private bool regenerateImmediatelyOnApply = true;
@@ -79,8 +85,10 @@ public class InGameGenerationMenu : MonoBehaviour
     private Texture2D floatingButtonTexture;
     private Texture2D floatingButtonHoverTexture;
     private Texture2D floatingButtonActiveTexture;
-    private Texture2D floatingButtonAccentTexture;
-    private Texture2D floatingButtonShadowTexture;
+    private Texture2D toggleBoxOffTexture;
+    private Texture2D toggleBoxOffHoverTexture;
+    private Texture2D toggleBoxOnTexture;
+    private Texture2D toggleBoxOnHoverTexture;
 
     private static InGameGenerationMenu instance;
 
@@ -384,10 +392,6 @@ public class InGameGenerationMenu : MonoBehaviour
             buttonWidth,
             buttonHeight);
 
-        Rect shadowRect = new Rect(buttonRect.x + 3f, buttonRect.y + 3f, buttonRect.width, buttonRect.height);
-        GUI.DrawTexture(shadowRect, floatingButtonShadowTexture);
-        GUI.DrawTexture(new Rect(buttonRect.x, buttonRect.y, buttonRect.width, 5f), floatingButtonAccentTexture);
-
         if (GUI.Button(buttonRect, buttonLabel, floatingButtonStyle))
         {
             ToggleMenu();
@@ -417,18 +421,45 @@ public class InGameGenerationMenu : MonoBehaviour
             fontSize = contentFontSize + 2
         };
 
-        GUIStyle toggleStyle = new GUIStyle(GUI.skin.toggle)
+        GUIStyle toggleBoxStyle = new GUIStyle(GUI.skin.toggle)
         {
-            fontSize = contentFontSize,
-            normal = { textColor = menuTextColor },
-            onNormal = { textColor = menuTextColor },
-            hover = { textColor = menuTextColor },
-            onHover = { textColor = menuTextColor },
-            active = { textColor = menuTextColor },
-            onActive = { textColor = menuTextColor },
-            focused = { textColor = menuTextColor },
-            onFocused = { textColor = menuTextColor }
+            fixedWidth = Mathf.Clamp(toggleBoxSize, 16f, 40f),
+            fixedHeight = Mathf.Clamp(toggleBoxSize, 16f, 40f),
+            margin = new RectOffset(0, 0, 0, 0),
+            padding = new RectOffset(0, 0, 0, 0),
+            border = new RectOffset(2, 2, 2, 2)
         };
+
+        toggleBoxStyle.normal.background = toggleBoxOffTexture;
+        toggleBoxStyle.onNormal.background = toggleBoxOnTexture;
+        toggleBoxStyle.hover.background = toggleBoxOffHoverTexture;
+        toggleBoxStyle.onHover.background = toggleBoxOnHoverTexture;
+        toggleBoxStyle.active.background = toggleBoxOffHoverTexture;
+        toggleBoxStyle.onActive.background = toggleBoxOnHoverTexture;
+        toggleBoxStyle.focused.background = toggleBoxOffHoverTexture;
+        toggleBoxStyle.onFocused.background = toggleBoxOnHoverTexture;
+
+        GUIStyle toggleTextStyle = new GUIStyle(labelStyle)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            fontSize = contentFontSize,
+            fontStyle = FontStyle.Normal
+        };
+
+        GUIStyle toggleCheckStyle = new GUIStyle(labelStyle)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontStyle = FontStyle.Bold,
+            fontSize = Mathf.RoundToInt(Mathf.Clamp(toggleBoxSize * 0.75f, 12f, 28f))
+        };
+        toggleCheckStyle.normal.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.onNormal.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.hover.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.onHover.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.active.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.onActive.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.focused.textColor = toggleCheckmarkColor;
+        toggleCheckStyle.onFocused.textColor = toggleCheckmarkColor;
 
         GUIStyle textFieldStyle = new GUIStyle(GUI.skin.textField)
         {
@@ -486,7 +517,7 @@ public class InGameGenerationMenu : MonoBehaviour
         obstaclePercent = GUILayout.HorizontalSlider(obstaclePercent, 0f, 0.85f, sliderStyle, sliderThumbStyle);
 
         GUILayout.Space(6f);
-        limitMineSourceTiles = GUILayout.Toggle(limitMineSourceTiles, "Limit Mine Sources", toggleStyle, controlHeightOption);
+        limitMineSourceTiles = DrawStyledToggleRow(limitMineSourceTiles, "Limit Mine Sources", toggleBoxStyle, toggleTextStyle, toggleCheckStyle, clampedControlHeight);
         if (limitMineSourceTiles)
         {
             GUILayout.Label($"Max Mine Source Percent: {maxMineSourcePercent:0.000}", labelStyle);
@@ -494,11 +525,11 @@ public class InGameGenerationMenu : MonoBehaviour
 
             GUILayout.Label($"Min Mine Source Tiles: {minMineSourceTiles}", labelStyle);
             minMineSourceTiles = Mathf.RoundToInt(GUILayout.HorizontalSlider(minMineSourceTiles, 0f, 30f, sliderStyle, sliderThumbStyle));
-            preserveNearestMine = GUILayout.Toggle(preserveNearestMine, "Preserve nearest mine to city", toggleStyle, controlHeightOption);
+            preserveNearestMine = DrawStyledToggleRow(preserveNearestMine, "Preserve nearest mine to city", toggleBoxStyle, toggleTextStyle, toggleCheckStyle, clampedControlHeight);
         }
 
         GUILayout.Space(6f);
-        guaranteeStarterResources = GUILayout.Toggle(guaranteeStarterResources, "Guarantee Starter Resource Nodes", toggleStyle, controlHeightOption);
+        guaranteeStarterResources = DrawStyledToggleRow(guaranteeStarterResources, "Guarantee Starter Resource Nodes", toggleBoxStyle, toggleTextStyle, toggleCheckStyle, clampedControlHeight);
         if (guaranteeStarterResources)
         {
             GUILayout.Label($"Starter Min Distance: {starterMinDistance}", labelStyle);
@@ -568,6 +599,45 @@ public class InGameGenerationMenu : MonoBehaviour
         GUI.DragWindow(new Rect(0f, 0f, 10000f, 24f));
     }
 
+    private bool DrawStyledToggleRow(bool currentValue, string label, GUIStyle toggleBoxStyle, GUIStyle textStyle, GUIStyle checkStyle, float rowHeight)
+    {
+        float boxSize = Mathf.Clamp(toggleBoxSize, 16f, 40f);
+        float totalHeight = Mathf.Max(rowHeight, boxSize + 4f);
+        Rect rowRect = GUILayoutUtility.GetRect(10f, totalHeight, GUILayout.ExpandWidth(true));
+
+        Rect boxRect = new Rect(
+            rowRect.x + 2f,
+            rowRect.y + (rowRect.height - boxSize) * 0.5f,
+            boxSize,
+            boxSize);
+
+        Rect labelRect = new Rect(
+            boxRect.xMax + 8f,
+            rowRect.y,
+            Mathf.Max(0f, rowRect.width - boxSize - 10f),
+            rowRect.height);
+
+        bool newValue = GUI.Toggle(boxRect, currentValue, GUIContent.none, toggleBoxStyle);
+        if (newValue)
+        {
+            GUI.Label(boxRect, "✓", checkStyle);
+        }
+
+        GUI.Label(labelRect, label, textStyle);
+
+        Event currentEvent = Event.current;
+        if (currentEvent != null
+            && currentEvent.type == EventType.MouseDown
+            && currentEvent.button == 0
+            && (boxRect.Contains(currentEvent.mousePosition) || labelRect.Contains(currentEvent.mousePosition)))
+        {
+            newValue = !currentValue;
+            currentEvent.Use();
+        }
+
+        return newValue;
+    }
+
     private GUIStyle CreateButtonStyle(int fontSize)
     {
         var style = new GUIStyle(GUI.skin.button)
@@ -605,9 +675,9 @@ public class InGameGenerationMenu : MonoBehaviour
             fontSize = fontSize,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
-            border = new RectOffset(0, 0, 0, 0),
+            border = new RectOffset(2, 2, 2, 2),
             margin = new RectOffset(0, 0, 0, 0),
-            padding = new RectOffset(10, 10, 6, 6)
+            padding = new RectOffset(12, 12, 7, 7)
         };
 
         style.normal.background = floatingButtonTexture;
@@ -645,11 +715,20 @@ public class InGameGenerationMenu : MonoBehaviour
         sliderTrackTexture = CreateSolidTexture(menuSliderTrackColor);
         sliderThumbTexture = CreateSolidTexture(menuSliderThumbColor);
         outlineTexture = CreateSolidTexture(menuOutlineColor);
-        floatingButtonTexture = CreateSolidTexture(floatingButtonBaseColor);
-        floatingButtonHoverTexture = CreateSolidTexture(floatingButtonHoverColor);
-        floatingButtonActiveTexture = CreateSolidTexture(floatingButtonActiveColor);
-        floatingButtonAccentTexture = CreateSolidTexture(floatingButtonAccentColor);
-        floatingButtonShadowTexture = CreateSolidTexture(floatingButtonShadowColor);
+
+        Color menuButtonFill = new Color(0.90f, 0.90f, 0.84f, 1f);
+        Color menuButtonFillHover = new Color(0.95f, 0.95f, 0.90f, 1f);
+        Color menuButtonFillActive = new Color(0.82f, 0.85f, 0.74f, 1f);
+        Color menuButtonOuterBorder = new Color(0.17f, 0.20f, 0.12f, 1f);
+        Color menuButtonInnerBorder = new Color(0.50f, 0.58f, 0.36f, 1f);
+
+        floatingButtonTexture = CreateBeveledTexture(menuButtonFill, menuButtonOuterBorder, menuButtonInnerBorder);
+        floatingButtonHoverTexture = CreateBeveledTexture(menuButtonFillHover, menuButtonOuterBorder, menuButtonInnerBorder);
+        floatingButtonActiveTexture = CreateBeveledTexture(menuButtonFillActive, menuButtonOuterBorder, menuButtonInnerBorder);
+        toggleBoxOffTexture = CreateToggleTexture(toggleBoxColor, toggleBoxBorderColor);
+        toggleBoxOffHoverTexture = CreateToggleTexture(toggleBoxHoverColor, toggleBoxBorderColor);
+        toggleBoxOnTexture = CreateToggleTexture(toggleBoxCheckedColor, toggleBoxBorderColor);
+        toggleBoxOnHoverTexture = CreateToggleTexture(toggleBoxHoverColor, toggleBoxBorderColor);
     }
 
     private static Texture2D CreateFramedTexture(Color fillColor, Color borderColor)
@@ -668,6 +747,67 @@ public class InGameGenerationMenu : MonoBehaviour
             for (int x = 0; x < size; x++)
             {
                 bool isBorder = x < border || y < border || x >= size - border || y >= size - border;
+                texture.SetPixel(x, y, isBorder ? borderColor : fillColor);
+            }
+        }
+
+        texture.Apply();
+        return texture;
+    }
+
+    private static Texture2D CreateBeveledTexture(Color fillColor, Color outerBorderColor, Color innerBorderColor)
+    {
+        const int size = 12;
+        const int outer = 1;
+        const int inner = 2;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Repeat,
+            filterMode = FilterMode.Point,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                bool isOuterBorder = x < outer || y < outer || x >= size - outer || y >= size - outer;
+                bool isInnerBorder = x < inner || y < inner || x >= size - inner || y >= size - inner;
+
+                if (isOuterBorder)
+                {
+                    texture.SetPixel(x, y, outerBorderColor);
+                }
+                else if (isInnerBorder)
+                {
+                    texture.SetPixel(x, y, innerBorderColor);
+                }
+                else
+                {
+                    texture.SetPixel(x, y, fillColor);
+                }
+            }
+        }
+
+        texture.Apply();
+        return texture;
+    }
+
+    private static Texture2D CreateToggleTexture(Color fillColor, Color borderColor)
+    {
+        const int size = 16;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Point,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                bool isBorder = x == 0 || y == 0 || x == size - 1 || y == size - 1;
                 texture.SetPixel(x, y, isBorder ? borderColor : fillColor);
             }
         }
@@ -703,8 +843,10 @@ public class InGameGenerationMenu : MonoBehaviour
         DestroyTexture(ref floatingButtonTexture);
         DestroyTexture(ref floatingButtonHoverTexture);
         DestroyTexture(ref floatingButtonActiveTexture);
-        DestroyTexture(ref floatingButtonAccentTexture);
-        DestroyTexture(ref floatingButtonShadowTexture);
+        DestroyTexture(ref toggleBoxOffTexture);
+        DestroyTexture(ref toggleBoxOffHoverTexture);
+        DestroyTexture(ref toggleBoxOnTexture);
+        DestroyTexture(ref toggleBoxOnHoverTexture);
     }
 
     private static void DestroyTexture(ref Texture2D texture)
