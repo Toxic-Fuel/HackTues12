@@ -1,8 +1,8 @@
 using GridGeneration;
 using System.Text;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 public class InGameGenerationMenu : MonoBehaviour
 {
@@ -10,7 +10,7 @@ public class InGameGenerationMenu : MonoBehaviour
     {
         public float obstaclePercent;
         public bool limitMineSourceTiles;
-        public float maxMineSourcePercent;
+        public int maxMineSourceTilesCap;
         public int minMineSourceTiles;
         public bool guaranteeStarterResources;
         public int starterMinDistance;
@@ -30,6 +30,10 @@ public class InGameGenerationMenu : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private GridMap gridMap;
+    [SerializeField] private UIDocument menuDocument;
+    [SerializeField] private PanelSettings panelSettings;
+    [SerializeField] private VisualTreeAsset menuLayoutAsset;
+    [SerializeField] private StyleSheet menuStyleSheet;
 
     [Header("Menu")]
     [SerializeField] private InputActionReference toggleMenuAction;
@@ -39,7 +43,7 @@ public class InGameGenerationMenu : MonoBehaviour
     [SerializeField] private bool blockSceneUiInputWhileMenuIsOpen = true;
     [SerializeField] private bool mainMenuOnlyUntilGridMapFound = true;
     [SerializeField] private bool showFloatingToggleButton = true;
-    [SerializeField] private Vector2 floatingButtonSize = new Vector2(140f, 58f);
+    [SerializeField] private Vector2 floatingButtonSize = new Vector2(220f, 84f);
     [SerializeField, Range(0f, 0.5f)] private float floatingButtonToggleCooldown = 0.2f;
     [SerializeField] private bool autoFindGridMap = true;
     [SerializeField] private bool autoApplyPendingChangesWhenGridMapAppears = true;
@@ -49,80 +53,30 @@ public class InGameGenerationMenu : MonoBehaviour
     [SerializeField, Min(320f)] private float referenceShortSidePixels = 1080f;
     [SerializeField, Range(0.7f, 2.2f)] private float minUiScale = 1f;
     [SerializeField, Range(0.7f, 2.2f)] private float maxUiScale = 1.8f;
-
-    [Header("Typography")]
-    [SerializeField, Range(14, 48)] private int windowTitleFontSize = 28;
-    [SerializeField, Range(12, 42)] private int contentFontSize = 24;
-    [SerializeField, Range(12, 48)] private int buttonFontSize = 24;
-    [SerializeField, Range(12, 42)] private int floatingButtonFontSize = 22;
-    [SerializeField, Range(24f, 84f)] private float controlHeight = 40f;
-
-    [Header("Theme")]
-    [SerializeField] private Color menuWindowColor = new Color(0.91f, 0.89f, 0.80f, 0.97f);
-    [SerializeField] private Color menuTextColor = new Color(0.08f, 0.08f, 0.08f, 1f);
-    [SerializeField] private Color menuButtonColor = new Color(0.68f, 0.72f, 0.52f, 1f);
-    [SerializeField] private Color menuButtonHoverColor = new Color(0.60f, 0.66f, 0.46f, 1f);
-    [SerializeField] private Color menuButtonActiveColor = new Color(0.44f, 0.50f, 0.32f, 1f);
-    [SerializeField] private Color menuInputFieldColor = new Color(0.85f, 0.84f, 0.74f, 1f);
-    [SerializeField] private Color menuInputFieldBorderColor = new Color(0.26f, 0.30f, 0.18f, 1f);
-    [SerializeField] private Color menuSliderTrackColor = new Color(0.39f, 0.43f, 0.29f, 1f);
-    [SerializeField] private Color menuSliderThumbColor = new Color(0.24f, 0.28f, 0.17f, 1f);
-    [SerializeField] private Color menuOutlineColor = new Color(0.06f, 0.06f, 0.06f, 1f);
-    [SerializeField, Range(1f, 8f)] private float menuOutlineThickness = 3f;
-    [SerializeField] private Color floatingButtonBaseColor = new Color(0.88f, 0.87f, 0.80f, 1f);
-    [SerializeField] private Color floatingButtonHoverColor = new Color(0.93f, 0.92f, 0.85f, 1f);
-    [SerializeField] private Color floatingButtonActiveColor = new Color(0.76f, 0.79f, 0.62f, 1f);
-    [SerializeField] private Color floatingButtonOuterBorderColor = new Color(0.17f, 0.20f, 0.12f, 1f);
-    [SerializeField] private Color floatingButtonInnerBorderColor = new Color(0.60f, 0.65f, 0.44f, 1f);
-    [SerializeField] private Color floatingButtonTextColor = new Color(0.10f, 0.11f, 0.07f, 1f);
-    [SerializeField, Range(18f, 40f)] private float toggleBoxSize = 24f;
-    [SerializeField] private Color toggleBoxColor = new Color(0.92f, 0.91f, 0.84f, 1f);
-    [SerializeField] private Color toggleBoxHoverColor = new Color(0.96f, 0.95f, 0.89f, 1f);
-    [SerializeField] private Color toggleBoxCheckedColor = new Color(0.72f, 0.77f, 0.55f, 1f);
-    [SerializeField] private Color toggleBoxBorderColor = new Color(0.22f, 0.26f, 0.16f, 1f);
-    [SerializeField] private Color toggleCheckmarkColor = new Color(0.08f, 0.09f, 0.06f, 1f);
+    [SerializeField, Range(1f, 2.4f)] private float baseMenuScaleBoost = 1.25f;
+    [SerializeField, Range(24f, 96f)] private float controlHeight = 58f;
 
     [Header("Regeneration")]
     [SerializeField] private bool regenerateImmediatelyOnApply = true;
     [SerializeField] private bool regenerateWhenApplyingPendingChanges = true;
 
-    private const int WindowId = 92741;
-    private Rect windowRect = new Rect(16f, 120f, 640f, 560f);
-    private Vector2 scrollPosition;
-    private bool isOpen;
-    private bool pendingApplyWithoutGridMap;
-    private bool centerWindowOnNextDraw = true;
-    private EventSystem blockedEventSystem;
-    private bool blockedEventSystemPreviousEnabled;
-    private float currentUiScale = 1f;
-    private float nextFloatingToggleAllowedAt;
-
-    private Texture2D windowTexture;
-    private Texture2D buttonTexture;
-    private Texture2D buttonHoverTexture;
-    private Texture2D buttonActiveTexture;
-    private Texture2D inputFieldTexture;
-    private Texture2D sliderTrackTexture;
-    private Texture2D sliderThumbTexture;
-    private Texture2D outlineTexture;
-    private Texture2D floatingButtonTexture;
-    private Texture2D floatingButtonHoverTexture;
-    private Texture2D floatingButtonActiveTexture;
-    private Texture2D toggleBoxOffTexture;
-    private Texture2D toggleBoxOffHoverTexture;
-    private Texture2D toggleBoxOnTexture;
-    private Texture2D toggleBoxOnHoverTexture;
-
     private static InGameGenerationMenu instance;
     private static bool hasPendingGridSettings;
     private static PendingGridSettings pendingGridSettings;
+    private const string OverlayOpenClass = "gen-menu-overlay--open";
+    private const string ButtonPressedClass = "gen-menu-button--pressed";
 
     public static bool IsAnyMenuOpen { get; private set; }
     public static bool IsMenuVisible { get; private set; }
 
+    public static bool IsSceneActionBlocked()
+    {
+        return instance != null && instance.isOpen && instance.CanDisplayMenu();
+    }
+
     private float obstaclePercent = 0.30f;
     private bool limitMineSourceTiles = true;
-    private float maxMineSourcePercent = 0.05f;
+    private int maxMineSourceTilesCap = 20;
     private int minMineSourceTiles = 6;
     private bool guaranteeStarterResources = true;
     private int starterMinDistance = 2;
@@ -130,28 +84,67 @@ public class InGameGenerationMenu : MonoBehaviour
     private bool preserveNearestMine = true;
     private string seedText = "0";
 
+    private bool isOpen;
+    private bool pendingApplyWithoutGridMap;
+    private float nextFloatingToggleAllowedAt;
+
+    private bool uiInitialized;
+    private bool uiCallbacksRegistered;
+    private bool suppressUiCallbacks;
+    private int lastScreenWidth = -1;
+    private int lastScreenHeight = -1;
+
+    private VisualElement root;
+    private VisualElement menuRoot;
+    private VisualElement overlay;
+    private VisualElement blocker;
+    private VisualElement window;
+    private VisualElement mineSourceGroup;
+    private VisualElement starterGroup;
+    private ScrollView menuScroll;
+
+    private Button openButton;
+    private Button closeTopButton;
+    private Button closeBottomButton;
+    private Button easyButton;
+    private Button mediumButton;
+    private Button hardButton;
+    private Button extremeButton;
+    private Button applyButton;
+    private Button applySeedButton;
+
+    private TextField seedField;
+    private Toggle limitMineSourceToggle;
+    private Toggle guaranteeStarterToggle;
+    private Toggle preserveNearestMineToggle;
+
+    private Slider obstacleSlider;
+    private SliderInt maxMineSourceSlider;
+    private SliderInt minMineSourceSlider;
+    private SliderInt starterMinDistanceSlider;
+    private SliderInt starterRadiusSlider;
+
+    private Label obstacleLabel;
+    private Label maxMineSourceLabel;
+    private Label minMineSourceLabel;
+    private Label starterMinDistanceLabel;
+    private Label starterRadiusLabel;
+
     private void Awake()
     {
         if (persistAcrossScenes)
         {
             if (instance != null && instance != this)
             {
-                bool hostsEventSystem = GetComponent<EventSystem>() != null || GetComponent<BaseInputModule>() != null;
-                if (hostsEventSystem)
-                {
-                    Destroy(this);
-                }
-                else
-                {
-                    Destroy(gameObject);
-                }
-
+                Destroy(gameObject);
                 return;
             }
 
             instance = this;
             DontDestroyOnLoad(gameObject);
         }
+
+        EnsureUiInitialized();
 
         if (gridMap == null)
         {
@@ -171,6 +164,9 @@ public class InGameGenerationMenu : MonoBehaviour
             TryApplyPendingSettingsToGridMap();
             PullFromGridMap();
         }
+
+        SyncControlsFromState();
+        ApplyResponsiveLayout(force: true);
     }
 
     private void OnEnable()
@@ -179,6 +175,8 @@ public class InGameGenerationMenu : MonoBehaviour
         {
             toggleMenuAction.action.Enable();
         }
+
+        EnsureUiInitialized();
     }
 
     private void OnDisable()
@@ -189,7 +187,6 @@ public class InGameGenerationMenu : MonoBehaviour
         }
 
         SetMenuOpenState(false);
-        RestoreBlockedEventSystem();
 
         if (instance == this)
         {
@@ -197,19 +194,25 @@ public class InGameGenerationMenu : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
-    {
-        DestroyThemeTextures();
-    }
-
     private void Update()
     {
+        EnsureUiInitialized();
         TryResolveGridMap();
 
         if (!CanDisplayMenu())
         {
             SetMenuOpenState(false);
+            if (menuRoot != null)
+            {
+                menuRoot.style.display = DisplayStyle.None;
+            }
+
             return;
+        }
+
+        if (menuRoot != null)
+        {
+            menuRoot.style.display = DisplayStyle.Flex;
         }
 
         bool shouldToggle = false;
@@ -243,69 +246,591 @@ public class InGameGenerationMenu : MonoBehaviour
         {
             ToggleMenu();
         }
+
+        if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight)
+        {
+            ApplyResponsiveLayout(force: true);
+        }
     }
 
-    private void OnGUI()
+    private void EnsureUiInitialized()
     {
-        if (!CanDisplayMenu())
+        if (uiInitialized && root != null)
         {
             return;
         }
 
-        EnsureThemeTextures();
-        currentUiScale = ComputeUiScale();
-
-        float scaledScreenWidth = Screen.width / currentUiScale;
-        float scaledScreenHeight = Screen.height / currentUiScale;
-
-        Matrix4x4 previousGuiMatrix = GUI.matrix;
-        if (!Mathf.Approximately(currentUiScale, 1f))
+        if (menuDocument == null)
         {
-            GUI.matrix = Matrix4x4.Scale(new Vector3(currentUiScale, currentUiScale, 1f));
+            menuDocument = GetComponent<UIDocument>();
         }
 
-        DrawFloatingToggleButton(scaledScreenWidth, scaledScreenHeight);
+        if (menuDocument == null)
+        {
+            menuDocument = gameObject.AddComponent<UIDocument>();
+        }
+
+        ResolvePanelSettings();
+        if (menuDocument.panelSettings == null && panelSettings != null)
+        {
+            menuDocument.panelSettings = panelSettings;
+        }
+
+        if (menuLayoutAsset == null)
+        {
+            menuLayoutAsset = Resources.Load<VisualTreeAsset>("UI/InGameGenerationMenu");
+        }
+
+        if (menuStyleSheet == null)
+        {
+            menuStyleSheet = Resources.Load<StyleSheet>("UI/InGameGenerationMenu");
+        }
+
+        if (menuLayoutAsset == null)
+        {
+            Debug.LogError("InGameGenerationMenu: Missing UI layout. Expected Resources/UI/InGameGenerationMenu.uxml", this);
+            return;
+        }
+
+        menuDocument.enabled = true;
+        root = menuDocument.rootVisualElement;
+        if (root == null)
+        {
+            return;
+        }
+
+        root.Clear();
+        menuLayoutAsset.CloneTree(root);
+        if (menuStyleSheet != null)
+        {
+            root.styleSheets.Add(menuStyleSheet);
+        }
+
+        CacheUiReferences();
+        RegisterUiCallbacks();
+
+        uiInitialized = true;
+    }
+
+    private void ResolvePanelSettings()
+    {
+        if (panelSettings != null)
+        {
+            return;
+        }
+
+        if (menuDocument != null && menuDocument.panelSettings != null)
+        {
+            panelSettings = menuDocument.panelSettings;
+            return;
+        }
+
+        UIDocument[] docs = FindObjectsByType<UIDocument>(FindObjectsInactive.Include);
+        for (int i = 0; i < docs.Length; i++)
+        {
+            if (docs[i] != null && docs[i] != menuDocument && docs[i].panelSettings != null)
+            {
+                panelSettings = docs[i].panelSettings;
+                return;
+            }
+        }
+
+        panelSettings = Resources.Load<PanelSettings>("UI/PanelSettings");
+    }
+
+    private void CacheUiReferences()
+    {
+        menuRoot = root.Q<VisualElement>("gen-menu-root");
+        overlay = root.Q<VisualElement>("gen-menu-overlay");
+        blocker = root.Q<VisualElement>("gen-menu-blocker");
+        window = root.Q<VisualElement>("gen-menu-window");
+        mineSourceGroup = root.Q<VisualElement>("mine-source-group");
+        starterGroup = root.Q<VisualElement>("starter-group");
+        menuScroll = root.Q<ScrollView>("gen-menu-scroll");
+
+        openButton = root.Q<Button>("gen-menu-open-button");
+        closeTopButton = root.Q<Button>("gen-menu-close-button");
+        closeBottomButton = root.Q<Button>("close-bottom-button");
+        easyButton = root.Q<Button>("preset-easy-button");
+        mediumButton = root.Q<Button>("preset-medium-button");
+        hardButton = root.Q<Button>("preset-hard-button");
+        extremeButton = root.Q<Button>("preset-extreme-button");
+        applyButton = root.Q<Button>("apply-button");
+        applySeedButton = root.Q<Button>("apply-seed-button");
+
+        seedField = root.Q<TextField>("seed-input");
+        limitMineSourceToggle = root.Q<Toggle>("limit-mine-sources-toggle");
+        guaranteeStarterToggle = root.Q<Toggle>("guarantee-starter-toggle");
+        preserveNearestMineToggle = root.Q<Toggle>("preserve-nearest-mine-toggle");
+
+        obstacleSlider = root.Q<Slider>("obstacle-slider");
+        maxMineSourceSlider = root.Q<SliderInt>("max-mine-source-slider");
+        minMineSourceSlider = root.Q<SliderInt>("min-mine-source-slider");
+        starterMinDistanceSlider = root.Q<SliderInt>("starter-min-distance-slider");
+        starterRadiusSlider = root.Q<SliderInt>("starter-radius-slider");
+
+        obstacleLabel = root.Q<Label>("obstacle-percent-label");
+        maxMineSourceLabel = root.Q<Label>("max-mine-source-percent-label");
+        minMineSourceLabel = root.Q<Label>("min-mine-source-tiles-label");
+        starterMinDistanceLabel = root.Q<Label>("starter-min-distance-label");
+        starterRadiusLabel = root.Q<Label>("starter-radius-label");
+
+        if (overlay != null)
+        {
+            overlay.pickingMode = PickingMode.Ignore;
+        }
+
+        if (root != null)
+        {
+            root.pickingMode = PickingMode.Ignore;
+        }
+
+        if (menuRoot != null)
+        {
+            menuRoot.pickingMode = PickingMode.Ignore;
+        }
+
+        if (openButton != null)
+        {
+            openButton.pickingMode = PickingMode.Position;
+        }
+
+        if (window != null)
+        {
+            window.pickingMode = PickingMode.Position;
+        }
+
+        if (blocker != null)
+        {
+            blocker.pickingMode = PickingMode.Position;
+        }
+
+        if (menuScroll != null)
+        {
+            menuScroll.mode = ScrollViewMode.Vertical;
+            menuScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            menuScroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
+            menuScroll.pickingMode = PickingMode.Position;
+        }
+    }
+
+    private void RegisterUiCallbacks()
+    {
+        if (uiCallbacksRegistered)
+        {
+            return;
+        }
+
+        if (openButton != null)
+        {
+            openButton.clicked += HandleOpenButtonClicked;
+        }
+
+        if (closeTopButton != null)
+        {
+            closeTopButton.clicked += HandleCloseButtonClicked;
+        }
+
+        if (closeBottomButton != null)
+        {
+            closeBottomButton.clicked += HandleCloseButtonClicked;
+        }
+
+        if (easyButton != null)
+        {
+            easyButton.clicked += () => HandlePresetClicked(DifficultyPreset.Easy);
+        }
+
+        if (mediumButton != null)
+        {
+            mediumButton.clicked += () => HandlePresetClicked(DifficultyPreset.Medium);
+        }
+
+        if (hardButton != null)
+        {
+            hardButton.clicked += () => HandlePresetClicked(DifficultyPreset.Hard);
+        }
+
+        if (extremeButton != null)
+        {
+            extremeButton.clicked += () => HandlePresetClicked(DifficultyPreset.Extreme);
+        }
+
+        if (applyButton != null)
+        {
+            applyButton.clicked += HandleApplyClicked;
+        }
+
+        if (applySeedButton != null)
+        {
+            applySeedButton.clicked += HandleApplySeedClicked;
+        }
+
+        if (seedField != null)
+        {
+            seedField.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                string sanitized = SanitizeSeedInput(evt.newValue);
+                if (!string.Equals(sanitized, evt.newValue))
+                {
+                    suppressUiCallbacks = true;
+                    seedField.SetValueWithoutNotify(sanitized);
+                    suppressUiCallbacks = false;
+                }
+
+                seedText = sanitized;
+            });
+        }
+
+        if (obstacleSlider != null)
+        {
+            obstacleSlider.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                obstaclePercent = Mathf.Clamp(evt.newValue, 0f, 0.85f);
+                UpdateObstacleLabel();
+            });
+        }
+
+        if (limitMineSourceToggle != null)
+        {
+            limitMineSourceToggle.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                limitMineSourceTiles = evt.newValue;
+                UpdateSectionVisibility();
+            });
+        }
+
+        if (maxMineSourceSlider != null)
+        {
+            maxMineSourceSlider.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                maxMineSourceTilesCap = Mathf.Clamp(evt.newValue, 0, GetMineSourceCapMax());
+                UpdateMineSourceLabels();
+            });
+        }
+
+        if (minMineSourceSlider != null)
+        {
+            minMineSourceSlider.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                minMineSourceTiles = Mathf.Clamp(evt.newValue, 0, 30);
+                UpdateMineSourceLabels();
+            });
+        }
+
+        if (preserveNearestMineToggle != null)
+        {
+            preserveNearestMineToggle.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                preserveNearestMine = evt.newValue;
+            });
+        }
+
+        if (guaranteeStarterToggle != null)
+        {
+            guaranteeStarterToggle.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                guaranteeStarterResources = evt.newValue;
+                UpdateSectionVisibility();
+            });
+        }
+
+        if (starterMinDistanceSlider != null)
+        {
+            starterMinDistanceSlider.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                starterMinDistance = Mathf.Clamp(evt.newValue, 1, 8);
+                if (starterRadius < starterMinDistance)
+                {
+                    starterRadius = starterMinDistance;
+                    suppressUiCallbacks = true;
+                    if (starterRadiusSlider != null)
+                    {
+                        starterRadiusSlider.SetValueWithoutNotify(starterRadius);
+                    }
+
+                    suppressUiCallbacks = false;
+                }
+
+                UpdateStarterLabels();
+            });
+        }
+
+        if (starterRadiusSlider != null)
+        {
+            starterRadiusSlider.RegisterValueChangedCallback(evt =>
+            {
+                if (suppressUiCallbacks)
+                {
+                    return;
+                }
+
+                starterRadius = Mathf.Clamp(evt.newValue, 1, 12);
+                if (starterRadius < starterMinDistance)
+                {
+                    starterRadius = starterMinDistance;
+                    suppressUiCallbacks = true;
+                    starterRadiusSlider.SetValueWithoutNotify(starterRadius);
+                    suppressUiCallbacks = false;
+                }
+
+                UpdateStarterLabels();
+            });
+        }
+
+        uiCallbacksRegistered = true;
+    }
+
+    private void HandleOpenButtonClicked()
+    {
+        AnimateButtonPress(openButton);
+
+        if (Time.unscaledTime < nextFloatingToggleAllowedAt)
+        {
+            return;
+        }
+
+        nextFloatingToggleAllowedAt = Time.unscaledTime + Mathf.Max(0f, floatingButtonToggleCooldown);
 
         if (!isOpen)
         {
-            GUI.matrix = previousGuiMatrix;
+            SetMenuOpenState(true);
+            if (gridMap != null)
+            {
+                PullFromGridMap();
+                SyncControlsFromState();
+            }
+        }
+    }
+
+    private void HandleCloseButtonClicked()
+    {
+        AnimateButtonPress(closeTopButton);
+        AnimateButtonPress(closeBottomButton);
+        SetMenuOpenState(false);
+    }
+
+    private void HandlePresetClicked(DifficultyPreset preset)
+    {
+        switch (preset)
+        {
+            case DifficultyPreset.Easy:
+                AnimateButtonPress(easyButton);
+                break;
+            case DifficultyPreset.Medium:
+                AnimateButtonPress(mediumButton);
+                break;
+            case DifficultyPreset.Hard:
+                AnimateButtonPress(hardButton);
+                break;
+            case DifficultyPreset.Extreme:
+                AnimateButtonPress(extremeButton);
+                break;
+        }
+
+        ApplyPreset(preset);
+        SyncControlsFromState();
+    }
+
+    private void HandleApplyClicked()
+    {
+        AnimateButtonPress(applyButton);
+        ApplyStateFromControls();
+
+        if (gridMap != null)
+        {
+            PushToGridMap();
+            if (regenerateImmediatelyOnApply)
+            {
+                gridMap.GenerateLandMap();
+            }
+        }
+        else
+        {
+            CacheCurrentSettingsForPendingApply(regenerateWhenApplyingPendingChanges);
+            pendingApplyWithoutGridMap = true;
+        }
+    }
+
+    private void HandleApplySeedClicked()
+    {
+        AnimateButtonPress(applySeedButton);
+        seedText = Random.Range(int.MinValue, int.MaxValue).ToString();
+        if (seedField != null)
+        {
+            suppressUiCallbacks = true;
+            seedField.SetValueWithoutNotify(seedText);
+            suppressUiCallbacks = false;
+        }
+
+        ApplyStateFromControls();
+
+        if (gridMap != null)
+        {
+            PushToGridMap();
+            gridMap.GenerateLandMap();
+        }
+        else
+        {
+            CacheCurrentSettingsForPendingApply(true);
+            pendingApplyWithoutGridMap = true;
+        }
+    }
+
+    private void ToggleMenu()
+    {
+        SetMenuOpenState(!isOpen);
+        if (isOpen && gridMap != null)
+        {
+            PullFromGridMap();
+            SyncControlsFromState();
+        }
+    }
+
+    private void SetMenuOpenState(bool open)
+    {
+        isOpen = open;
+        IsMenuVisible = isOpen;
+        IsAnyMenuOpen = blockGameplayInputWhileOpen && isOpen;
+        UpdateUiVisibility();
+    }
+
+    private void UpdateUiVisibility()
+    {
+        if (overlay != null)
+        {
+            overlay.style.display = isOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            overlay.EnableInClassList(OverlayOpenClass, isOpen);
+        }
+
+        if (openButton != null)
+        {
+            openButton.style.display = showFloatingToggleButton && !isOpen ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        if (blocker != null)
+        {
+            bool shouldBlock = blockSceneUiInputWhileMenuIsOpen && isOpen;
+            blocker.style.display = shouldBlock ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+    }
+
+    private void UpdateSectionVisibility()
+    {
+        if (mineSourceGroup != null)
+        {
+            mineSourceGroup.style.display = limitMineSourceTiles ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        if (starterGroup != null)
+        {
+            starterGroup.style.display = guaranteeStarterResources ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+    }
+
+    private void ApplyResponsiveLayout(bool force)
+    {
+        if (!force && Screen.width == lastScreenWidth && Screen.height == lastScreenHeight)
+        {
             return;
         }
 
-        float maxWidth = Mathf.Max(360f, scaledScreenWidth - 24f);
-        float maxHeight = Mathf.Max(300f, scaledScreenHeight - 24f);
-        windowRect.width = Mathf.Min(windowRect.width, maxWidth);
-        windowRect.height = Mathf.Min(windowRect.height, maxHeight);
+        lastScreenWidth = Screen.width;
+        lastScreenHeight = Screen.height;
 
-        if (centerWindowOnNextDraw)
+        float uiScale = ComputeUiScale();
+        float widthScale = Mathf.Max(0.1f, Screen.width / 1920f);
+        float heightScale = Mathf.Max(0.1f, Screen.height / 1080f);
+        float targetHeight = Mathf.Clamp(controlHeight * uiScale, 64f, 150f);
+
+        if (openButton != null)
         {
-            windowRect.x = (scaledScreenWidth - windowRect.width) * 0.5f;
-            windowRect.y = (scaledScreenHeight - windowRect.height) * 0.5f;
-            centerWindowOnNextDraw = false;
+            openButton.style.width = Mathf.Clamp(floatingButtonSize.x * uiScale, 180f, Screen.width * 0.70f);
+            openButton.style.height = Mathf.Clamp(floatingButtonSize.y * uiScale, 64f, Screen.height * 0.22f);
+            openButton.style.left = 12f * uiScale;
+            openButton.style.bottom = 12f * uiScale;
+            openButton.style.fontSize = Mathf.Clamp(24f * uiScale, 20f, 40f);
         }
 
-        windowRect.x = Mathf.Clamp(windowRect.x, 0f, scaledScreenWidth - windowRect.width);
-        windowRect.y = Mathf.Clamp(windowRect.y, 0f, scaledScreenHeight - windowRect.height);
-
-        GUIStyle windowStyle = new GUIStyle(GUI.skin.window)
+        if (window != null)
         {
-            fontSize = windowTitleFontSize,
-            alignment = TextAnchor.UpperCenter,
-            padding = new RectOffset(12, 12, 12, 12)
-        };
+            float windowWidth = Mathf.Clamp(Screen.width * 0.97f, 420f, 1280f * Mathf.Clamp(widthScale, 0.95f, 1.6f));
+            float windowHeight = Mathf.Clamp(Screen.height * 0.93f, 560f, Screen.height * 0.99f);
+            window.style.width = windowWidth;
+            window.style.maxWidth = windowWidth;
+            window.style.height = windowHeight;
+            window.style.minHeight = Mathf.Min(windowHeight, Screen.height * 0.82f);
+            window.style.maxHeight = Screen.height * 0.99f;
+            window.style.fontSize = Mathf.Clamp(22f * Mathf.Clamp(heightScale, 0.95f, 1.5f), 19f, 38f);
+        }
 
-        windowStyle.normal.background = windowTexture;
-        windowStyle.onNormal.background = windowTexture;
-        windowStyle.active.background = windowTexture;
-        windowStyle.focused.background = windowTexture;
-        windowStyle.normal.textColor = menuTextColor;
-        windowStyle.onNormal.textColor = menuTextColor;
-        windowStyle.active.textColor = menuTextColor;
-        windowStyle.focused.textColor = menuTextColor;
+        SetControlMinHeight(seedField, targetHeight);
+        SetControlMinHeight(limitMineSourceToggle, targetHeight);
+        SetControlMinHeight(guaranteeStarterToggle, targetHeight);
+        SetControlMinHeight(preserveNearestMineToggle, targetHeight);
+        SetControlMinHeight(obstacleSlider, targetHeight);
+        SetControlMinHeight(maxMineSourceSlider, targetHeight);
+        SetControlMinHeight(minMineSourceSlider, targetHeight);
+        SetControlMinHeight(starterMinDistanceSlider, targetHeight);
+        SetControlMinHeight(starterRadiusSlider, targetHeight);
+        SetControlMinHeight(applyButton, targetHeight);
+        SetControlMinHeight(applySeedButton, targetHeight);
+        SetControlMinHeight(closeTopButton, targetHeight * 0.9f);
+        SetControlMinHeight(closeBottomButton, targetHeight);
+        SetControlMinHeight(easyButton, targetHeight);
+        SetControlMinHeight(mediumButton, targetHeight);
+        SetControlMinHeight(hardButton, targetHeight);
+        SetControlMinHeight(extremeButton, targetHeight);
+    }
 
-        windowRect = GUI.Window(WindowId, windowRect, DrawWindow, "World Generation", windowStyle);
-        DrawOutline(windowRect, menuOutlineThickness, outlineTexture);
-        GUI.matrix = previousGuiMatrix;
+    private static void SetControlMinHeight(VisualElement element, float height)
+    {
+        if (element == null)
+        {
+            return;
+        }
+
+        element.style.minHeight = height;
     }
 
     private float ComputeUiScale()
@@ -315,82 +840,38 @@ public class InGameGenerationMenu : MonoBehaviour
             return 1f;
         }
 
+        float widthScale = Mathf.Max(0.1f, Screen.width / 1920f);
+        float heightScale = Mathf.Max(0.1f, Screen.height / 1080f);
+        float aspectBalancedScale = Mathf.Sqrt(widthScale * heightScale);
+
         float shortSide = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height));
         float referenceSide = Mathf.Max(320f, referenceShortSidePixels);
-        float rawScale = shortSide / referenceSide;
+        float shortSideScale = shortSide / referenceSide;
+        float rawScale = (aspectBalancedScale + shortSideScale) * 0.5f;
+        rawScale *= Mathf.Max(1f, baseMenuScaleBoost);
+
+        // Touch devices need slightly larger controls for reliable finger interaction.
+        bool touchDevice = Input.touchSupported || Touchscreen.current != null;
+        if (touchDevice)
+        {
+            rawScale *= 1.15f;
+        }
+
         float minScale = Mathf.Min(minUiScale, maxUiScale);
         float maxScale = Mathf.Max(minUiScale, maxUiScale);
         return Mathf.Clamp(rawScale, minScale, maxScale);
     }
 
-    private void ToggleMenu()
+    private void AnimateButtonPress(Button button)
     {
-        if (!CanDisplayMenu())
-        {
-            SetMenuOpenState(false);
-            return;
-        }
-
-        SetMenuOpenState(!isOpen);
-        if (isOpen)
-        {
-            centerWindowOnNextDraw = true;
-            if (gridMap != null)
-            {
-                PullFromGridMap();
-            }
-        }
-    }
-
-    private void SetMenuOpenState(bool open)
-    {
-        isOpen = open;
-        IsMenuVisible = isOpen;
-        IsAnyMenuOpen = blockGameplayInputWhileOpen && isOpen;
-        UpdateEventSystemBlockState();
-    }
-
-    private void UpdateEventSystemBlockState()
-    {
-        if (!blockSceneUiInputWhileMenuIsOpen)
-        {
-            RestoreBlockedEventSystem();
-            return;
-        }
-
-        bool shouldBlock = isOpen && CanDisplayMenu();
-        if (!shouldBlock)
-        {
-            RestoreBlockedEventSystem();
-            return;
-        }
-
-        EventSystem currentEventSystem = EventSystem.current;
-        if (currentEventSystem == null)
+        if (button == null)
         {
             return;
         }
 
-        if (blockedEventSystem != currentEventSystem)
-        {
-            RestoreBlockedEventSystem();
-            blockedEventSystem = currentEventSystem;
-            blockedEventSystemPreviousEnabled = currentEventSystem.enabled;
-        }
-
-        if (currentEventSystem.enabled)
-        {
-            currentEventSystem.enabled = false;
-        }
-    }
-
-    private void RestoreBlockedEventSystem()
-    {
-        if (blockedEventSystem != null)
-        {
-            blockedEventSystem.enabled = blockedEventSystemPreviousEnabled;
-            blockedEventSystem = null;
-        }
+        button.RemoveFromClassList(ButtonPressedClass);
+        button.AddToClassList(ButtonPressedClass);
+        button.schedule.Execute(() => button.RemoveFromClassList(ButtonPressedClass)).StartingIn(120);
     }
 
     private void TryResolveGridMap()
@@ -425,6 +906,7 @@ public class InGameGenerationMenu : MonoBehaviour
         if (CanDisplayMenu())
         {
             PullFromGridMap();
+            SyncControlsFromState();
         }
         else
         {
@@ -437,510 +919,41 @@ public class InGameGenerationMenu : MonoBehaviour
         return !mainMenuOnlyUntilGridMapFound || gridMap == null;
     }
 
-    private void DrawFloatingToggleButton(float scaledScreenWidth, float scaledScreenHeight)
+    private int GetGridCellCountOrDefault()
     {
-        if (!showFloatingToggleButton)
+        int width = gridMap != null ? Mathf.Max(1, gridMap.Width) : 20;
+        int height = gridMap != null ? Mathf.Max(1, gridMap.Height) : 20;
+        return width * height;
+    }
+
+    private int GetMineSourceCapMax()
+    {
+        return Mathf.Max(30, GetGridCellCountOrDefault());
+    }
+
+    private int ConvertPercentToMineSourceCap(float percent)
+    {
+        int cap = Mathf.RoundToInt(Mathf.Clamp01(percent) * GetGridCellCountOrDefault());
+        return Mathf.Clamp(cap, 0, GetMineSourceCapMax());
+    }
+
+    private float ConvertMineSourceCapToPercent(int cap)
+    {
+        int cellCount = Mathf.Max(1, GetGridCellCountOrDefault());
+        return Mathf.Clamp01(cap / (float)cellCount);
+    }
+
+    private void UpdateMineSourceSliderRange()
+    {
+        if (maxMineSourceSlider == null)
         {
             return;
         }
 
-        // Keep the floating button as an "open" affordance only to avoid accidental closes on touch devices.
-        if (isOpen)
-        {
-            return;
-        }
-
-        string buttonLabel = isOpen ? "Close Menu" : "Gen Menu";
-        GUIStyle floatingButtonStyle = CreateFloatingButtonStyle(floatingButtonFontSize);
-
-        float buttonWidth = Mathf.Clamp(floatingButtonSize.x, 100f, 280f);
-        float buttonHeight = Mathf.Clamp(floatingButtonSize.y, 44f, 120f);
-
-        // Ensure the text always fits inside the floating button.
-        Vector2 textSize = floatingButtonStyle.CalcSize(new GUIContent(buttonLabel));
-        float requiredWidth = textSize.x + floatingButtonStyle.padding.left + floatingButtonStyle.padding.right + 20f;
-        float maxAllowedWidth = Mathf.Max(140f, scaledScreenWidth * 0.45f);
-        buttonWidth = Mathf.Clamp(Mathf.Max(buttonWidth, requiredWidth), 100f, maxAllowedWidth);
-
-        Rect buttonRect = new Rect(
-            0f,
-            scaledScreenHeight - buttonHeight,
-            buttonWidth,
-            buttonHeight);
-
-        if (GUI.Button(buttonRect, buttonLabel, floatingButtonStyle)
-            && Time.unscaledTime >= nextFloatingToggleAllowedAt)
-        {
-            nextFloatingToggleAllowedAt = Time.unscaledTime + Mathf.Max(0f, floatingButtonToggleCooldown);
-            ToggleMenu();
-        }
-    }
-
-    private void DrawWindow(int id)
-    {
-        GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = contentFontSize,
-            richText = false
-        };
-
-        labelStyle.normal.textColor = menuTextColor;
-        labelStyle.onNormal.textColor = menuTextColor;
-        labelStyle.hover.textColor = menuTextColor;
-        labelStyle.onHover.textColor = menuTextColor;
-        labelStyle.active.textColor = menuTextColor;
-        labelStyle.onActive.textColor = menuTextColor;
-        labelStyle.focused.textColor = menuTextColor;
-        labelStyle.onFocused.textColor = menuTextColor;
-
-        GUIStyle sectionStyle = new GUIStyle(labelStyle)
-        {
-            fontStyle = FontStyle.Bold,
-            fontSize = contentFontSize + 2
-        };
-
-        GUIStyle toggleBoxStyle = new GUIStyle(GUI.skin.toggle)
-        {
-            fixedWidth = Mathf.Clamp(toggleBoxSize, 16f, 40f),
-            fixedHeight = Mathf.Clamp(toggleBoxSize, 16f, 40f),
-            margin = new RectOffset(0, 0, 0, 0),
-            padding = new RectOffset(0, 0, 0, 0),
-            border = new RectOffset(2, 2, 2, 2)
-        };
-
-        toggleBoxStyle.normal.background = toggleBoxOffTexture;
-        toggleBoxStyle.onNormal.background = toggleBoxOnTexture;
-        toggleBoxStyle.hover.background = toggleBoxOffHoverTexture;
-        toggleBoxStyle.onHover.background = toggleBoxOnHoverTexture;
-        toggleBoxStyle.active.background = toggleBoxOffHoverTexture;
-        toggleBoxStyle.onActive.background = toggleBoxOnHoverTexture;
-        toggleBoxStyle.focused.background = toggleBoxOffHoverTexture;
-        toggleBoxStyle.onFocused.background = toggleBoxOnHoverTexture;
-
-        GUIStyle toggleTextStyle = new GUIStyle(labelStyle)
-        {
-            alignment = TextAnchor.MiddleLeft,
-            fontSize = contentFontSize,
-            fontStyle = FontStyle.Normal
-        };
-
-        GUIStyle toggleCheckStyle = new GUIStyle(labelStyle)
-        {
-            alignment = TextAnchor.MiddleCenter,
-            fontStyle = FontStyle.Bold,
-            fontSize = Mathf.RoundToInt(Mathf.Clamp(toggleBoxSize * 0.75f, 12f, 28f))
-        };
-        toggleCheckStyle.normal.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.onNormal.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.hover.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.onHover.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.active.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.onActive.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.focused.textColor = toggleCheckmarkColor;
-        toggleCheckStyle.onFocused.textColor = toggleCheckmarkColor;
-
-        GUIStyle textFieldStyle = new GUIStyle(GUI.skin.textField)
-        {
-            fontSize = contentFontSize,
-            padding = new RectOffset(10, 10, 6, 6)
-        };
-
-        textFieldStyle.normal.background = inputFieldTexture;
-        textFieldStyle.focused.background = inputFieldTexture;
-        textFieldStyle.hover.background = inputFieldTexture;
-        textFieldStyle.active.background = inputFieldTexture;
-        textFieldStyle.normal.textColor = menuTextColor;
-        textFieldStyle.onNormal.textColor = menuTextColor;
-        textFieldStyle.focused.textColor = menuTextColor;
-        textFieldStyle.onFocused.textColor = menuTextColor;
-        textFieldStyle.hover.textColor = menuTextColor;
-        textFieldStyle.onHover.textColor = menuTextColor;
-        textFieldStyle.active.textColor = menuTextColor;
-        textFieldStyle.onActive.textColor = menuTextColor;
-
-        GUIStyle buttonStyle = CreateButtonStyle(buttonFontSize);
-
-        GUIStyle sliderStyle = new GUIStyle(GUI.skin.horizontalSlider)
-        {
-            fixedHeight = 10f,
-            margin = new RectOffset(4, 4, 8, 8),
-            border = new RectOffset(0, 0, 0, 0)
-        };
-        sliderStyle.normal.background = sliderTrackTexture;
-
-        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb)
-        {
-            fixedHeight = 22f,
-            fixedWidth = 22f,
-            margin = new RectOffset(0, 0, 0, 0)
-        };
-        sliderThumbStyle.normal.background = sliderThumbTexture;
-        sliderThumbStyle.hover.background = buttonHoverTexture;
-        sliderThumbStyle.active.background = buttonActiveTexture;
-
-        float clampedControlHeight = Mathf.Clamp(controlHeight, 24f, 100f);
-        GUILayoutOption[] controlHeightOption = { GUILayout.Height(clampedControlHeight) };
-
-        Rect contentRect = new Rect(8f, 26f, windowRect.width - 16f, windowRect.height - 34f);
-        GUILayout.BeginArea(contentRect);
-
-        scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, true, GUILayout.ExpandHeight(true));
-
-        GUILayout.Label("Seed", sectionStyle);
-        seedText = GUILayout.TextField(seedText ?? string.Empty, textFieldStyle, controlHeightOption);
-        seedText = SanitizeSeedInput(seedText);
-
-        GUILayout.Space(6f);
-        GUILayout.Label($"Obstacle Percent: {obstaclePercent:0.00}", labelStyle);
-        obstaclePercent = GUILayout.HorizontalSlider(obstaclePercent, 0f, 0.85f, sliderStyle, sliderThumbStyle);
-
-        GUILayout.Space(6f);
-        limitMineSourceTiles = DrawStyledToggleRow(limitMineSourceTiles, "Limit Mine Sources", toggleBoxStyle, toggleTextStyle, toggleCheckStyle, clampedControlHeight);
-        if (limitMineSourceTiles)
-        {
-            GUILayout.Label($"Max Mine Source Percent: {maxMineSourcePercent:0.000}", labelStyle);
-            maxMineSourcePercent = GUILayout.HorizontalSlider(maxMineSourcePercent, 0f, 0.15f, sliderStyle, sliderThumbStyle);
-
-            GUILayout.Label($"Min Mine Source Tiles: {minMineSourceTiles}", labelStyle);
-            minMineSourceTiles = Mathf.RoundToInt(GUILayout.HorizontalSlider(minMineSourceTiles, 0f, 30f, sliderStyle, sliderThumbStyle));
-            preserveNearestMine = DrawStyledToggleRow(preserveNearestMine, "Preserve nearest mine to city", toggleBoxStyle, toggleTextStyle, toggleCheckStyle, clampedControlHeight);
-        }
-
-        GUILayout.Space(6f);
-        guaranteeStarterResources = DrawStyledToggleRow(guaranteeStarterResources, "Guarantee Starter Resource Nodes", toggleBoxStyle, toggleTextStyle, toggleCheckStyle, clampedControlHeight);
-        if (guaranteeStarterResources)
-        {
-            GUILayout.Label($"Starter Min Distance: {starterMinDistance}", labelStyle);
-            starterMinDistance = Mathf.RoundToInt(GUILayout.HorizontalSlider(starterMinDistance, 1f, 8f, sliderStyle, sliderThumbStyle));
-
-            int minRadius = Mathf.Max(1, starterMinDistance);
-            GUILayout.Label($"Starter Radius: {starterRadius} (min {minRadius})", labelStyle);
-            starterRadius = Mathf.RoundToInt(GUILayout.HorizontalSlider(starterRadius, 1f, 12f, sliderStyle, sliderThumbStyle));
-            if (starterRadius < minRadius)
-            {
-                starterRadius = minRadius;
-            }
-        }
-
-        GUILayout.Space(10f);
-        GUILayout.Label("Difficulty Presets", sectionStyle);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Easy", buttonStyle, controlHeightOption)) ApplyPreset(DifficultyPreset.Easy);
-        if (GUILayout.Button("Medium", buttonStyle, controlHeightOption)) ApplyPreset(DifficultyPreset.Medium);
-        GUILayout.EndHorizontal();
-
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Hard", buttonStyle, controlHeightOption)) ApplyPreset(DifficultyPreset.Hard);
-        if (GUILayout.Button("Extreme", buttonStyle, controlHeightOption)) ApplyPreset(DifficultyPreset.Extreme);
-        GUILayout.EndHorizontal();
-
-        GUILayout.Space(12f);
-        if (GUILayout.Button("Apply", buttonStyle, controlHeightOption))
-        {
-            if (gridMap != null)
-            {
-                PushToGridMap();
-                if (regenerateImmediatelyOnApply)
-                {
-                    gridMap.GenerateLandMap();
-                }
-            }
-            else
-            {
-                CacheCurrentSettingsForPendingApply(regenerateWhenApplyingPendingChanges);
-                pendingApplyWithoutGridMap = true;
-            }
-        }
-
-        if (GUILayout.Button("Apply + New Seed", buttonStyle, controlHeightOption))
-        {
-            seedText = Random.Range(int.MinValue, int.MaxValue).ToString();
-
-            if (gridMap != null)
-            {
-                PushToGridMap();
-                gridMap.GenerateLandMap();
-            }
-            else
-            {
-                CacheCurrentSettingsForPendingApply(true);
-                pendingApplyWithoutGridMap = true;
-            }
-        }
-
-        if (GUILayout.Button("Close", buttonStyle, controlHeightOption))
-        {
-            SetMenuOpenState(false);
-        }
-
-        GUILayout.Space(8f);
-        GUILayout.Label("Toggle via action/F2 or bottom-left button", labelStyle);
-
-        GUILayout.EndScrollView();
-        GUILayout.EndArea();
-
-        GUI.DragWindow(new Rect(0f, 0f, 10000f, 24f));
-    }
-
-    private bool DrawStyledToggleRow(bool currentValue, string label, GUIStyle toggleBoxStyle, GUIStyle textStyle, GUIStyle checkStyle, float rowHeight)
-    {
-        float boxSize = Mathf.Clamp(toggleBoxSize, 16f, 40f);
-        float totalHeight = Mathf.Max(rowHeight, boxSize + 4f);
-        Rect rowRect = GUILayoutUtility.GetRect(10f, totalHeight, GUILayout.ExpandWidth(true));
-
-        Rect boxRect = new Rect(
-            rowRect.x + 2f,
-            rowRect.y + (rowRect.height - boxSize) * 0.5f,
-            boxSize,
-            boxSize);
-
-        Rect labelRect = new Rect(
-            boxRect.xMax + 8f,
-            rowRect.y,
-            Mathf.Max(0f, rowRect.width - boxSize - 10f),
-            rowRect.height);
-
-        bool newValue = GUI.Toggle(boxRect, currentValue, GUIContent.none, toggleBoxStyle);
-        if (newValue)
-        {
-            GUI.Label(boxRect, "✓", checkStyle);
-        }
-
-        GUI.Label(labelRect, label, textStyle);
-
-        Event currentEvent = Event.current;
-        if (currentEvent != null
-            && currentEvent.type == EventType.MouseDown
-            && currentEvent.button == 0
-            && (boxRect.Contains(currentEvent.mousePosition) || labelRect.Contains(currentEvent.mousePosition)))
-        {
-            newValue = !currentValue;
-            currentEvent.Use();
-        }
-
-        return newValue;
-    }
-
-    private GUIStyle CreateButtonStyle(int fontSize)
-    {
-        var style = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = fontSize,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            border = new RectOffset(0, 0, 0, 0),
-            margin = new RectOffset(4, 4, 4, 4)
-        };
-
-        style.normal.background = buttonTexture;
-        style.onNormal.background = buttonTexture;
-        style.hover.background = buttonHoverTexture;
-        style.onHover.background = buttonHoverTexture;
-        style.active.background = buttonActiveTexture;
-        style.onActive.background = buttonActiveTexture;
-        style.focused.background = buttonHoverTexture;
-        style.onFocused.background = buttonHoverTexture;
-        style.normal.textColor = menuTextColor;
-        style.onNormal.textColor = menuTextColor;
-        style.hover.textColor = menuTextColor;
-        style.onHover.textColor = menuTextColor;
-        style.active.textColor = menuTextColor;
-        style.onActive.textColor = menuTextColor;
-        style.focused.textColor = menuTextColor;
-        style.onFocused.textColor = menuTextColor;
-        return style;
-    }
-
-    private GUIStyle CreateFloatingButtonStyle(int fontSize)
-    {
-        var style = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = fontSize,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            border = new RectOffset(2, 2, 2, 2),
-            margin = new RectOffset(0, 0, 0, 0),
-            padding = new RectOffset(12, 12, 7, 7)
-        };
-
-        style.normal.background = floatingButtonTexture;
-        style.onNormal.background = floatingButtonTexture;
-        style.hover.background = floatingButtonHoverTexture;
-        style.onHover.background = floatingButtonHoverTexture;
-        style.active.background = floatingButtonActiveTexture;
-        style.onActive.background = floatingButtonActiveTexture;
-        style.focused.background = floatingButtonHoverTexture;
-        style.onFocused.background = floatingButtonHoverTexture;
-
-        style.normal.textColor = floatingButtonTextColor;
-        style.onNormal.textColor = floatingButtonTextColor;
-        style.hover.textColor = floatingButtonTextColor;
-        style.onHover.textColor = floatingButtonTextColor;
-        style.active.textColor = floatingButtonTextColor;
-        style.onActive.textColor = floatingButtonTextColor;
-        style.focused.textColor = floatingButtonTextColor;
-        style.onFocused.textColor = floatingButtonTextColor;
-        return style;
-    }
-
-    private void EnsureThemeTextures()
-    {
-        if (windowTexture != null)
-        {
-            return;
-        }
-
-        windowTexture = CreateSolidTexture(menuWindowColor);
-        buttonTexture = CreateSolidTexture(menuButtonColor);
-        buttonHoverTexture = CreateSolidTexture(menuButtonHoverColor);
-        buttonActiveTexture = CreateSolidTexture(menuButtonActiveColor);
-        inputFieldTexture = CreateFramedTexture(menuInputFieldColor, menuInputFieldBorderColor);
-        sliderTrackTexture = CreateSolidTexture(menuSliderTrackColor);
-        sliderThumbTexture = CreateSolidTexture(menuSliderThumbColor);
-        outlineTexture = CreateSolidTexture(menuOutlineColor);
-
-        Color menuButtonFill = new Color(0.90f, 0.90f, 0.84f, 1f);
-        Color menuButtonFillHover = new Color(0.95f, 0.95f, 0.90f, 1f);
-        Color menuButtonFillActive = new Color(0.82f, 0.85f, 0.74f, 1f);
-        Color menuButtonOuterBorder = new Color(0.17f, 0.20f, 0.12f, 1f);
-        Color menuButtonInnerBorder = new Color(0.50f, 0.58f, 0.36f, 1f);
-
-        floatingButtonTexture = CreateBeveledTexture(menuButtonFill, menuButtonOuterBorder, menuButtonInnerBorder);
-        floatingButtonHoverTexture = CreateBeveledTexture(menuButtonFillHover, menuButtonOuterBorder, menuButtonInnerBorder);
-        floatingButtonActiveTexture = CreateBeveledTexture(menuButtonFillActive, menuButtonOuterBorder, menuButtonInnerBorder);
-        toggleBoxOffTexture = CreateToggleTexture(toggleBoxColor, toggleBoxBorderColor);
-        toggleBoxOffHoverTexture = CreateToggleTexture(toggleBoxHoverColor, toggleBoxBorderColor);
-        toggleBoxOnTexture = CreateToggleTexture(toggleBoxCheckedColor, toggleBoxBorderColor);
-        toggleBoxOnHoverTexture = CreateToggleTexture(toggleBoxHoverColor, toggleBoxBorderColor);
-    }
-
-    private static Texture2D CreateFramedTexture(Color fillColor, Color borderColor)
-    {
-        const int size = 8;
-        const int border = 1;
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Repeat,
-            filterMode = FilterMode.Point,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                bool isBorder = x < border || y < border || x >= size - border || y >= size - border;
-                texture.SetPixel(x, y, isBorder ? borderColor : fillColor);
-            }
-        }
-
-        texture.Apply();
-        return texture;
-    }
-
-    private static Texture2D CreateBeveledTexture(Color fillColor, Color outerBorderColor, Color innerBorderColor)
-    {
-        const int size = 12;
-        const int outer = 1;
-        const int inner = 2;
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Repeat,
-            filterMode = FilterMode.Point,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                bool isOuterBorder = x < outer || y < outer || x >= size - outer || y >= size - outer;
-                bool isInnerBorder = x < inner || y < inner || x >= size - inner || y >= size - inner;
-
-                if (isOuterBorder)
-                {
-                    texture.SetPixel(x, y, outerBorderColor);
-                }
-                else if (isInnerBorder)
-                {
-                    texture.SetPixel(x, y, innerBorderColor);
-                }
-                else
-                {
-                    texture.SetPixel(x, y, fillColor);
-                }
-            }
-        }
-
-        texture.Apply();
-        return texture;
-    }
-
-    private static Texture2D CreateToggleTexture(Color fillColor, Color borderColor)
-    {
-        const int size = 16;
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Point,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                bool isBorder = x == 0 || y == 0 || x == size - 1 || y == size - 1;
-                texture.SetPixel(x, y, isBorder ? borderColor : fillColor);
-            }
-        }
-
-        texture.Apply();
-        return texture;
-    }
-
-    private static Texture2D CreateSolidTexture(Color color)
-    {
-        var texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Repeat,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        texture.SetPixel(0, 0, color);
-        texture.Apply();
-        return texture;
-    }
-
-    private void DestroyThemeTextures()
-    {
-        DestroyTexture(ref windowTexture);
-        DestroyTexture(ref buttonTexture);
-        DestroyTexture(ref buttonHoverTexture);
-        DestroyTexture(ref buttonActiveTexture);
-        DestroyTexture(ref inputFieldTexture);
-        DestroyTexture(ref sliderTrackTexture);
-        DestroyTexture(ref sliderThumbTexture);
-        DestroyTexture(ref outlineTexture);
-        DestroyTexture(ref floatingButtonTexture);
-        DestroyTexture(ref floatingButtonHoverTexture);
-        DestroyTexture(ref floatingButtonActiveTexture);
-        DestroyTexture(ref toggleBoxOffTexture);
-        DestroyTexture(ref toggleBoxOffHoverTexture);
-        DestroyTexture(ref toggleBoxOnTexture);
-        DestroyTexture(ref toggleBoxOnHoverTexture);
-    }
-
-    private static void DestroyTexture(ref Texture2D texture)
-    {
-        if (texture == null)
-        {
-            return;
-        }
-
-        Destroy(texture);
-        texture = null;
+        int maxCap = GetMineSourceCapMax();
+        maxMineSourceSlider.lowValue = 0;
+        maxMineSourceSlider.highValue = maxCap;
+        maxMineSourceTilesCap = Mathf.Clamp(maxMineSourceTilesCap, 0, maxCap);
     }
 
     private void PullFromGridMap()
@@ -952,13 +965,172 @@ public class InGameGenerationMenu : MonoBehaviour
 
         obstaclePercent = gridMap.ObstaclePercent;
         limitMineSourceTiles = gridMap.LimitMineSourceTiles;
-        maxMineSourcePercent = gridMap.MaxMineSourcePercent;
+        maxMineSourceTilesCap = ConvertPercentToMineSourceCap(gridMap.MaxMineSourcePercent);
         minMineSourceTiles = gridMap.MinMineSourceTiles;
         guaranteeStarterResources = gridMap.GuaranteeStarterResourceNodes;
         starterMinDistance = gridMap.StarterResourceMinDistanceFromCity;
         starterRadius = gridMap.StarterResourceRadius;
         preserveNearestMine = gridMap.PreserveNearestMineSourceToCity;
         seedText = gridMap.seed.ToString();
+    }
+
+    private void ApplyStateFromControls()
+    {
+        if (seedField != null)
+        {
+            seedText = SanitizeSeedInput(seedField.value);
+            seedField.SetValueWithoutNotify(seedText);
+        }
+
+        if (obstacleSlider != null)
+        {
+            obstaclePercent = Mathf.Clamp(obstacleSlider.value, 0f, 0.85f);
+        }
+
+        if (limitMineSourceToggle != null)
+        {
+            limitMineSourceTiles = limitMineSourceToggle.value;
+        }
+
+        if (maxMineSourceSlider != null)
+        {
+            maxMineSourceTilesCap = Mathf.Clamp(maxMineSourceSlider.value, 0, GetMineSourceCapMax());
+        }
+
+        if (minMineSourceSlider != null)
+        {
+            minMineSourceTiles = Mathf.Clamp(minMineSourceSlider.value, 0, 30);
+        }
+
+        if (preserveNearestMineToggle != null)
+        {
+            preserveNearestMine = preserveNearestMineToggle.value;
+        }
+
+        if (guaranteeStarterToggle != null)
+        {
+            guaranteeStarterResources = guaranteeStarterToggle.value;
+        }
+
+        if (starterMinDistanceSlider != null)
+        {
+            starterMinDistance = Mathf.Clamp(starterMinDistanceSlider.value, 1, 8);
+        }
+
+        if (starterRadiusSlider != null)
+        {
+            starterRadius = Mathf.Clamp(starterRadiusSlider.value, 1, 12);
+        }
+
+        if (starterRadius < starterMinDistance)
+        {
+            starterRadius = starterMinDistance;
+            if (starterRadiusSlider != null)
+            {
+                starterRadiusSlider.SetValueWithoutNotify(starterRadius);
+            }
+        }
+
+        UpdateAllValueLabels();
+        UpdateSectionVisibility();
+    }
+
+    private void SyncControlsFromState()
+    {
+        suppressUiCallbacks = true;
+
+        if (seedField != null)
+        {
+            seedField.SetValueWithoutNotify(seedText ?? string.Empty);
+        }
+
+        if (obstacleSlider != null)
+        {
+            obstacleSlider.SetValueWithoutNotify(obstaclePercent);
+        }
+
+        if (limitMineSourceToggle != null)
+        {
+            limitMineSourceToggle.SetValueWithoutNotify(limitMineSourceTiles);
+        }
+
+        if (maxMineSourceSlider != null)
+        {
+            UpdateMineSourceSliderRange();
+            maxMineSourceSlider.SetValueWithoutNotify(maxMineSourceTilesCap);
+        }
+
+        if (minMineSourceSlider != null)
+        {
+            minMineSourceSlider.SetValueWithoutNotify(minMineSourceTiles);
+        }
+
+        if (preserveNearestMineToggle != null)
+        {
+            preserveNearestMineToggle.SetValueWithoutNotify(preserveNearestMine);
+        }
+
+        if (guaranteeStarterToggle != null)
+        {
+            guaranteeStarterToggle.SetValueWithoutNotify(guaranteeStarterResources);
+        }
+
+        if (starterMinDistanceSlider != null)
+        {
+            starterMinDistanceSlider.SetValueWithoutNotify(starterMinDistance);
+        }
+
+        if (starterRadiusSlider != null)
+        {
+            starterRadiusSlider.SetValueWithoutNotify(starterRadius);
+        }
+
+        suppressUiCallbacks = false;
+
+        UpdateAllValueLabels();
+        UpdateSectionVisibility();
+    }
+
+    private void UpdateAllValueLabels()
+    {
+        UpdateObstacleLabel();
+        UpdateMineSourceLabels();
+        UpdateStarterLabels();
+    }
+
+    private void UpdateObstacleLabel()
+    {
+        if (obstacleLabel != null)
+        {
+            obstacleLabel.text = $"Obstacle Percent: {obstaclePercent:0.00}";
+        }
+    }
+
+    private void UpdateMineSourceLabels()
+    {
+        if (maxMineSourceLabel != null)
+        {
+            maxMineSourceLabel.text = $"Max Mine Source Tiles: {maxMineSourceTilesCap}";
+        }
+
+        if (minMineSourceLabel != null)
+        {
+            minMineSourceLabel.text = $"Min Mine Source Tiles: {minMineSourceTiles}";
+        }
+    }
+
+    private void UpdateStarterLabels()
+    {
+        if (starterMinDistanceLabel != null)
+        {
+            starterMinDistanceLabel.text = $"Starter Min Distance: {starterMinDistance}";
+        }
+
+        if (starterRadiusLabel != null)
+        {
+            int minRadius = Mathf.Max(1, starterMinDistance);
+            starterRadiusLabel.text = $"Starter Radius: {starterRadius} (min {minRadius})";
+        }
     }
 
     public static void QueueCurrentSettingsForNextGridMap()
@@ -978,7 +1150,7 @@ public class InGameGenerationMenu : MonoBehaviour
         {
             obstaclePercent = obstaclePercent,
             limitMineSourceTiles = limitMineSourceTiles,
-            maxMineSourcePercent = maxMineSourcePercent,
+            maxMineSourceTilesCap = maxMineSourceTilesCap,
             minMineSourceTiles = minMineSourceTiles,
             guaranteeStarterResources = guaranteeStarterResources,
             starterMinDistance = starterMinDistance,
@@ -1000,7 +1172,7 @@ public class InGameGenerationMenu : MonoBehaviour
 
         obstaclePercent = pendingGridSettings.obstaclePercent;
         limitMineSourceTiles = pendingGridSettings.limitMineSourceTiles;
-        maxMineSourcePercent = pendingGridSettings.maxMineSourcePercent;
+        maxMineSourceTilesCap = pendingGridSettings.maxMineSourceTilesCap;
         minMineSourceTiles = pendingGridSettings.minMineSourceTiles;
         guaranteeStarterResources = pendingGridSettings.guaranteeStarterResources;
         starterMinDistance = pendingGridSettings.starterMinDistance;
@@ -1015,6 +1187,7 @@ public class InGameGenerationMenu : MonoBehaviour
         }
 
         hasPendingGridSettings = false;
+        SyncControlsFromState();
         return true;
     }
 
@@ -1027,7 +1200,7 @@ public class InGameGenerationMenu : MonoBehaviour
 
         gridMap.ObstaclePercent = obstaclePercent;
         gridMap.LimitMineSourceTiles = limitMineSourceTiles;
-        gridMap.MaxMineSourcePercent = maxMineSourcePercent;
+        gridMap.MaxMineSourcePercent = ConvertMineSourceCapToPercent(maxMineSourceTilesCap);
         gridMap.MinMineSourceTiles = minMineSourceTiles;
         gridMap.GuaranteeStarterResourceNodes = guaranteeStarterResources;
         gridMap.StarterResourceMinDistanceFromCity = starterMinDistance;
@@ -1104,20 +1277,6 @@ public class InGameGenerationMenu : MonoBehaviour
         return true;
     }
 
-    private static void DrawOutline(Rect rect, float thickness, Texture2D texture)
-    {
-        if (texture == null)
-        {
-            return;
-        }
-
-        float t = Mathf.Max(1f, thickness);
-        GUI.DrawTexture(new Rect(rect.x - t, rect.y - t, rect.width + (2f * t), t), texture);
-        GUI.DrawTexture(new Rect(rect.x - t, rect.yMax, rect.width + (2f * t), t), texture);
-        GUI.DrawTexture(new Rect(rect.x - t, rect.y, t, rect.height), texture);
-        GUI.DrawTexture(new Rect(rect.xMax, rect.y, t, rect.height), texture);
-    }
-
     private void ApplyPreset(DifficultyPreset preset)
     {
         switch (preset)
@@ -1125,7 +1284,7 @@ public class InGameGenerationMenu : MonoBehaviour
             case DifficultyPreset.Easy:
                 obstaclePercent = 0.22f;
                 limitMineSourceTiles = true;
-                maxMineSourcePercent = 0.07f;
+                maxMineSourceTilesCap = 28;
                 minMineSourceTiles = 8;
                 guaranteeStarterResources = true;
                 starterMinDistance = 1;
@@ -1136,7 +1295,7 @@ public class InGameGenerationMenu : MonoBehaviour
             case DifficultyPreset.Medium:
                 obstaclePercent = 0.30f;
                 limitMineSourceTiles = true;
-                maxMineSourcePercent = 0.05f;
+                maxMineSourceTilesCap = 20;
                 minMineSourceTiles = 6;
                 guaranteeStarterResources = true;
                 starterMinDistance = 2;
@@ -1147,7 +1306,7 @@ public class InGameGenerationMenu : MonoBehaviour
             case DifficultyPreset.Hard:
                 obstaclePercent = 0.38f;
                 limitMineSourceTiles = true;
-                maxMineSourcePercent = 0.035f;
+                maxMineSourceTilesCap = 14;
                 minMineSourceTiles = 4;
                 guaranteeStarterResources = true;
                 starterMinDistance = 2;
@@ -1158,7 +1317,7 @@ public class InGameGenerationMenu : MonoBehaviour
             case DifficultyPreset.Extreme:
                 obstaclePercent = 0.48f;
                 limitMineSourceTiles = true;
-                maxMineSourcePercent = 0.02f;
+                maxMineSourceTilesCap = 8;
                 minMineSourceTiles = 2;
                 guaranteeStarterResources = true;
                 starterMinDistance = 3;

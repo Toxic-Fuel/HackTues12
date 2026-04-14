@@ -7,7 +7,7 @@ public class PlayButton : MonoBehaviour
 
     public void Play()
     {
-        if (InGameGenerationMenu.IsMenuVisible)
+        if (InGameGenerationMenu.IsSceneActionBlocked())
         {
             return;
         }

@@ -1,0 +1,75 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="gen-menu-root" class="gen-menu-root">
+        <ui:Button name="gen-menu-open-button" text="Gen Menu" class="gen-menu-open-button" />
+
+        <ui:VisualElement name="gen-menu-overlay" class="gen-menu-overlay">
+            <ui:VisualElement name="gen-menu-blocker" class="gen-menu-blocker" />
+
+            <ui:VisualElement name="gen-menu-window" class="gen-menu-window">
+                <ui:VisualElement class="gen-menu-header">
+                    <ui:Label text="World Generation" class="gen-menu-title" />
+                    <ui:Button name="gen-menu-close-button" text="Close" class="gen-menu-close-button" />
+                </ui:VisualElement>
+
+                <ui:ScrollView name="gen-menu-scroll" mode="Vertical" class="gen-menu-scroll">
+                    <ui:VisualElement class="gen-section">
+                        <ui:Label text="Seed" class="gen-section-title" />
+                        <ui:TextField name="seed-input" class="gen-text-input" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="gen-section">
+                        <ui:Label name="obstacle-percent-label" text="Obstacle Percent: 0.30" class="gen-value-label" />
+                        <ui:Slider name="obstacle-slider" low-value="0" high-value="0.85" value="0.3" class="gen-slider" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="gen-section">
+                        <ui:Toggle name="limit-mine-sources-toggle" text="Limit Mine Sources" class="gen-toggle" value="true" />
+
+                        <ui:VisualElement name="mine-source-group" class="gen-group">
+                            <ui:Label name="max-mine-source-percent-label" text="Max Mine Source Tiles: 20" class="gen-value-label" />
+                            <ui:SliderInt name="max-mine-source-slider" low-value="0" high-value="400" value="20" class="gen-slider" />
+
+                            <ui:Label name="min-mine-source-tiles-label" text="Min Mine Source Tiles: 6" class="gen-value-label" />
+                            <ui:SliderInt name="min-mine-source-slider" low-value="0" high-value="30" value="6" class="gen-slider" />
+
+                            <ui:Toggle name="preserve-nearest-mine-toggle" text="Preserve nearest mine to city" class="gen-toggle" value="true" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="gen-section">
+                        <ui:Toggle name="guarantee-starter-toggle" text="Guarantee Starter Resource Nodes" class="gen-toggle" value="true" />
+
+                        <ui:VisualElement name="starter-group" class="gen-group">
+                            <ui:Label name="starter-min-distance-label" text="Starter Min Distance: 2" class="gen-value-label" />
+                            <ui:SliderInt name="starter-min-distance-slider" low-value="1" high-value="8" value="2" class="gen-slider" />
+
+                            <ui:Label name="starter-radius-label" text="Starter Radius: 4 (min 2)" class="gen-value-label" />
+                            <ui:SliderInt name="starter-radius-slider" low-value="1" high-value="12" value="4" class="gen-slider" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="gen-section">
+                        <ui:Label text="Difficulty Presets" class="gen-section-title" />
+
+                        <ui:VisualElement class="gen-button-row">
+                            <ui:Button name="preset-easy-button" text="Easy" class="gen-button" />
+                            <ui:Button name="preset-medium-button" text="Medium" class="gen-button" />
+                        </ui:VisualElement>
+
+                        <ui:VisualElement class="gen-button-row">
+                            <ui:Button name="preset-hard-button" text="Hard" class="gen-button" />
+                            <ui:Button name="preset-extreme-button" text="Extreme" class="gen-button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="gen-section">
+                        <ui:Button name="apply-button" text="Apply" class="gen-button gen-button-primary" />
+                        <ui:Button name="apply-seed-button" text="Apply + New Seed" class="gen-button gen-button-primary" />
+                        <ui:Button name="close-bottom-button" text="Close" class="gen-button" />
+                        <ui:Label text="Toggle via action/F2 or Gen Menu button" class="gen-footer-label" />
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
