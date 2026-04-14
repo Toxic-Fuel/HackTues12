@@ -236,10 +236,10 @@ namespace GridGeneration
                 return;
             }
 
-            List<GridTile> obstacleTiles = FindTilesByType(TileType.Obstacle);
+            List<GridTile> obstacleTiles = FindObstacleCandidateTiles();
             if (obstacleTiles.Count == 0)
             {
-                Debug.LogError("GridMap: No tile with type Obstacle found.", this);
+                Debug.LogError("GridMap: No tiles with type Obstacle, Mountain, or River found.", this);
                 return;
             }
 
@@ -934,27 +934,37 @@ namespace GridGeneration
                 return obstacleTiles[0];
             }
 
-            float sampleScale = Mathf.Max(0.001f, obstacleNoiseScale);
-            float sampleX = (x + seed * 0.137f) * sampleScale;
-            float sampleY = (y - seed * 0.173f) * sampleScale;
-            float noiseValue = Mathf.PerlinNoise(sampleX, sampleY);
-
-            // Blend low-frequency Perlin with a deterministic hash so one variant does not dominate on some seeds.
-            float hashValue = DeterministicUnitValue(x, y, seed);
-            float mixedValue = Mathf.Lerp(noiseValue, hashValue, 0.6f);
-            int obstacleIndex = Mathf.Clamp(Mathf.FloorToInt(mixedValue * obstacleTiles.Count), 0, obstacleTiles.Count - 1);
-            return obstacleTiles[obstacleIndex];
-        }
-
-        private static float DeterministicUnitValue(int x, int y, int seedValue)
-        {
+            // Use deterministic hashing for an even distribution of obstacle variants.
             unchecked
             {
                 int hash = x * 73856093;
                 hash ^= y * 19349663;
-                hash ^= seedValue * 83492791;
-                hash &= 0x7fffffff;
-                return hash / (float)int.MaxValue;
+                hash ^= seed * 83492791;
+                int obstacleIndex = (hash & 0x7fffffff) % obstacleTiles.Count;
+                return obstacleTiles[obstacleIndex];
+            }
+        }
+
+        private List<GridTile> FindObstacleCandidateTiles()
+        {
+            var result = new List<GridTile>();
+            var seen = new HashSet<GridTile>();
+            AddTilesByTypeUnique(TileType.Obstacle, result, seen);
+            AddTilesByTypeUnique(TileType.Mountain, result, seen);
+            AddTilesByTypeUnique(TileType.River, result, seen);
+            return result;
+        }
+
+        private void AddTilesByTypeUnique(TileType tileType, List<GridTile> result, HashSet<GridTile> seen)
+        {
+            List<GridTile> found = FindTilesByType(tileType);
+            for (int i = 0; i < found.Count; i++)
+            {
+                GridTile tile = found[i];
+                if (tile != null && seen.Add(tile))
+                {
+                    result.Add(tile);
+                }
             }
         }
 
