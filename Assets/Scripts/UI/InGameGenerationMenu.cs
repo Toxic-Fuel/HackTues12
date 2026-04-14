@@ -40,8 +40,15 @@ public class InGameGenerationMenu : MonoBehaviour
     [SerializeField] private bool mainMenuOnlyUntilGridMapFound = true;
     [SerializeField] private bool showFloatingToggleButton = true;
     [SerializeField] private Vector2 floatingButtonSize = new Vector2(140f, 58f);
+    [SerializeField, Range(0f, 0.5f)] private float floatingButtonToggleCooldown = 0.2f;
     [SerializeField] private bool autoFindGridMap = true;
     [SerializeField] private bool autoApplyPendingChangesWhenGridMapAppears = true;
+
+    [Header("UI Scale")]
+    [SerializeField] private bool scaleWithScreenShortSide = true;
+    [SerializeField, Min(320f)] private float referenceShortSidePixels = 1080f;
+    [SerializeField, Range(0.7f, 2.2f)] private float minUiScale = 1f;
+    [SerializeField, Range(0.7f, 2.2f)] private float maxUiScale = 1.8f;
 
     [Header("Typography")]
     [SerializeField, Range(14, 48)] private int windowTitleFontSize = 28;
@@ -87,6 +94,8 @@ public class InGameGenerationMenu : MonoBehaviour
     private bool centerWindowOnNextDraw = true;
     private EventSystem blockedEventSystem;
     private bool blockedEventSystemPreviousEnabled;
+    private float currentUiScale = 1f;
+    private float nextFloatingToggleAllowedAt;
 
     private Texture2D windowTexture;
     private Texture2D buttonTexture;
@@ -109,6 +118,7 @@ public class InGameGenerationMenu : MonoBehaviour
     private static PendingGridSettings pendingGridSettings;
 
     public static bool IsAnyMenuOpen { get; private set; }
+    public static bool IsMenuVisible { get; private set; }
 
     private float obstaclePercent = 0.30f;
     private bool limitMineSourceTiles = true;
@@ -206,7 +216,17 @@ public class InGameGenerationMenu : MonoBehaviour
 
         if (toggleMenuAction != null && toggleMenuAction.action != null && toggleMenuAction.action.WasPressedThisFrame())
         {
-            shouldToggle = true;
+            bool actionFromTouchscreen = toggleMenuAction.action.activeControl != null
+                && toggleMenuAction.action.activeControl.device is Touchscreen;
+
+            if (!actionFromTouchscreen)
+            {
+                shouldToggle = true;
+            }
+            else if (!isOpen && !showFloatingToggleButton)
+            {
+                shouldToggle = true;
+            }
         }
 
         if (!shouldToggle && Keyboard.current != null && Keyboard.current.f2Key.wasPressedThisFrame)
@@ -233,28 +253,39 @@ public class InGameGenerationMenu : MonoBehaviour
         }
 
         EnsureThemeTextures();
+        currentUiScale = ComputeUiScale();
 
-        DrawFloatingToggleButton();
+        float scaledScreenWidth = Screen.width / currentUiScale;
+        float scaledScreenHeight = Screen.height / currentUiScale;
+
+        Matrix4x4 previousGuiMatrix = GUI.matrix;
+        if (!Mathf.Approximately(currentUiScale, 1f))
+        {
+            GUI.matrix = Matrix4x4.Scale(new Vector3(currentUiScale, currentUiScale, 1f));
+        }
+
+        DrawFloatingToggleButton(scaledScreenWidth, scaledScreenHeight);
 
         if (!isOpen)
         {
+            GUI.matrix = previousGuiMatrix;
             return;
         }
 
-        float maxWidth = Mathf.Max(360f, Screen.width - 24f);
-        float maxHeight = Mathf.Max(300f, Screen.height - 24f);
+        float maxWidth = Mathf.Max(360f, scaledScreenWidth - 24f);
+        float maxHeight = Mathf.Max(300f, scaledScreenHeight - 24f);
         windowRect.width = Mathf.Min(windowRect.width, maxWidth);
         windowRect.height = Mathf.Min(windowRect.height, maxHeight);
 
         if (centerWindowOnNextDraw)
         {
-            windowRect.x = (Screen.width - windowRect.width) * 0.5f;
-            windowRect.y = (Screen.height - windowRect.height) * 0.5f;
+            windowRect.x = (scaledScreenWidth - windowRect.width) * 0.5f;
+            windowRect.y = (scaledScreenHeight - windowRect.height) * 0.5f;
             centerWindowOnNextDraw = false;
         }
 
-        windowRect.x = Mathf.Clamp(windowRect.x, 0f, Screen.width - windowRect.width);
-        windowRect.y = Mathf.Clamp(windowRect.y, 0f, Screen.height - windowRect.height);
+        windowRect.x = Mathf.Clamp(windowRect.x, 0f, scaledScreenWidth - windowRect.width);
+        windowRect.y = Mathf.Clamp(windowRect.y, 0f, scaledScreenHeight - windowRect.height);
 
         GUIStyle windowStyle = new GUIStyle(GUI.skin.window)
         {
@@ -274,6 +305,22 @@ public class InGameGenerationMenu : MonoBehaviour
 
         windowRect = GUI.Window(WindowId, windowRect, DrawWindow, "World Generation", windowStyle);
         DrawOutline(windowRect, menuOutlineThickness, outlineTexture);
+        GUI.matrix = previousGuiMatrix;
+    }
+
+    private float ComputeUiScale()
+    {
+        if (!scaleWithScreenShortSide)
+        {
+            return 1f;
+        }
+
+        float shortSide = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height));
+        float referenceSide = Mathf.Max(320f, referenceShortSidePixels);
+        float rawScale = shortSide / referenceSide;
+        float minScale = Mathf.Min(minUiScale, maxUiScale);
+        float maxScale = Mathf.Max(minUiScale, maxUiScale);
+        return Mathf.Clamp(rawScale, minScale, maxScale);
     }
 
     private void ToggleMenu()
@@ -298,6 +345,7 @@ public class InGameGenerationMenu : MonoBehaviour
     private void SetMenuOpenState(bool open)
     {
         isOpen = open;
+        IsMenuVisible = isOpen;
         IsAnyMenuOpen = blockGameplayInputWhileOpen && isOpen;
         UpdateEventSystemBlockState();
     }
@@ -310,7 +358,7 @@ public class InGameGenerationMenu : MonoBehaviour
             return;
         }
 
-        bool shouldBlock = IsAnyMenuOpen && CanDisplayMenu();
+        bool shouldBlock = isOpen && CanDisplayMenu();
         if (!shouldBlock)
         {
             RestoreBlockedEventSystem();
@@ -389,9 +437,15 @@ public class InGameGenerationMenu : MonoBehaviour
         return !mainMenuOnlyUntilGridMapFound || gridMap == null;
     }
 
-    private void DrawFloatingToggleButton()
+    private void DrawFloatingToggleButton(float scaledScreenWidth, float scaledScreenHeight)
     {
         if (!showFloatingToggleButton)
+        {
+            return;
+        }
+
+        // Keep the floating button as an "open" affordance only to avoid accidental closes on touch devices.
+        if (isOpen)
         {
             return;
         }
@@ -405,17 +459,19 @@ public class InGameGenerationMenu : MonoBehaviour
         // Ensure the text always fits inside the floating button.
         Vector2 textSize = floatingButtonStyle.CalcSize(new GUIContent(buttonLabel));
         float requiredWidth = textSize.x + floatingButtonStyle.padding.left + floatingButtonStyle.padding.right + 20f;
-        float maxAllowedWidth = Mathf.Max(140f, Screen.width * 0.45f);
+        float maxAllowedWidth = Mathf.Max(140f, scaledScreenWidth * 0.45f);
         buttonWidth = Mathf.Clamp(Mathf.Max(buttonWidth, requiredWidth), 100f, maxAllowedWidth);
 
         Rect buttonRect = new Rect(
             0f,
-            Screen.height - buttonHeight,
+            scaledScreenHeight - buttonHeight,
             buttonWidth,
             buttonHeight);
 
-        if (GUI.Button(buttonRect, buttonLabel, floatingButtonStyle))
+        if (GUI.Button(buttonRect, buttonLabel, floatingButtonStyle)
+            && Time.unscaledTime >= nextFloatingToggleAllowedAt)
         {
+            nextFloatingToggleAllowedAt = Time.unscaledTime + Mathf.Max(0f, floatingButtonToggleCooldown);
             ToggleMenu();
         }
     }

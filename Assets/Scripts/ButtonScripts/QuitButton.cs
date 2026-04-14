@@ -4,7 +4,7 @@ public class QuitButton : MonoBehaviour
 {
     public void Quit()
     {
-        if (InGameGenerationMenu.IsAnyMenuOpen)
+        if (InGameGenerationMenu.IsMenuVisible)
         {
             return;
         }
