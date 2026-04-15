@@ -2,9 +2,11 @@ using GridGeneration;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using TMPro;
 using QuestSystem;
+using Sounds;
 
 public class TileBuildContextPanel : MonoBehaviour
 {
@@ -37,6 +39,11 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private TMP_Text questUIText;
     [SerializeField] private Button acceptButton;
     [SerializeField] private Button declineButton;
+
+    [Header("Quest SFX")]
+    [SerializeField] private UnityEvent onQuestPanelOpened;
+    [SerializeField] private SFXManager questSfxManager;
+    [SerializeField] private string questSfxName = "quest_sfx";
 
     [Header("Button Tint")]
     [SerializeField] private Color normalButtonColor = Color.white;
@@ -105,6 +112,15 @@ public class TileBuildContextPanel : MonoBehaviour
         {
             turns = FindAnyObjectByType<Turns>();
         }
+
+        if (questSfxManager == null)
+        {
+            questSfxManager = FindAnyObjectByType<SFXManager>();
+        }
+
+        onQuestPanelOpened ??= new UnityEvent();
+        onQuestPanelOpened.RemoveListener(PlayQuestOpenedSfx);
+        onQuestPanelOpened.AddListener(PlayQuestOpenedSfx);
 
         if (canvas == null)
         {
@@ -855,10 +871,32 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        if (questPanelRoot.activeSelf != visible)
+        bool wasVisible = questPanelRoot.activeSelf;
+        if (wasVisible != visible)
         {
             questPanelRoot.SetActive(visible);
+
+            if (visible)
+            {
+                onQuestPanelOpened?.Invoke();
+            }
         }
+    }
+
+    private void PlayQuestOpenedSfx()
+    {
+        if (questSfxManager == null)
+        {
+            questSfxManager = FindAnyObjectByType<SFXManager>();
+        }
+
+        if (questSfxManager == null)
+        {
+            Debug.LogWarning("TileBuildContextPanel: No SFXManager found in scene.", this);
+            return;
+        }
+
+        questSfxManager.PlaySfx(questSfxName);
     }
 
     private void BuildRoad()

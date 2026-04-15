@@ -2,6 +2,8 @@ using System;
 using EndGame;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Events;
+using Sounds;
 
 public class Turns : MonoBehaviour
 {
@@ -31,6 +33,11 @@ public class Turns : MonoBehaviour
     [Header("Input")]
     [SerializeField] private InputActionReference endTurnAction;
     [SerializeField] private Key skipTurnKey = Key.P;
+
+    [Header("Turn SFX")]
+    [SerializeField] private UnityEvent onTurnPassed;
+    [SerializeField] private SFXManager turnSfxManager;
+    [SerializeField] private string nextTurnSfxName = "next_turn_sfx";
 
     [Header("UI")]
     [SerializeField] private ResourceTurnsUI resourceTurnsUI;
@@ -200,6 +207,15 @@ public class Turns : MonoBehaviour
             resourceTurnsUI.gameObject.SetActive(false);
         }
 
+        if (turnSfxManager == null)
+        {
+            turnSfxManager = FindAnyObjectByType<SFXManager>();
+        }
+
+        onTurnPassed ??= new UnityEvent();
+        onTurnPassed.RemoveListener(PlayNextTurnSfx);
+        onTurnPassed.AddListener(PlayNextTurnSfx);
+
         ActionsRemaining = Mathf.Max(0, actionsPerTurn);
 
         if (autoStartOnAwake)
@@ -351,6 +367,8 @@ public class Turns : MonoBehaviour
         RemainingTurns = Mathf.Max(0, RemainingTurns);
         RefreshUI();
 
+        onTurnPassed?.Invoke();
+
         TurnEnded?.Invoke(this);
 
         if (RemainingTurns == 0)
@@ -362,6 +380,22 @@ public class Turns : MonoBehaviour
         CurrentResources[(int)ResourceType.Turn] += 1;
         BeginPlayerTurn();
         return true;
+    }
+
+    private void PlayNextTurnSfx()
+    {
+        if (turnSfxManager == null)
+        {
+            turnSfxManager = FindAnyObjectByType<SFXManager>();
+        }
+
+        if (turnSfxManager == null)
+        {
+            Debug.LogWarning("Turns: No SFXManager found in scene.", this);
+            return;
+        }
+
+        turnSfxManager.PlaySfx(nextTurnSfxName);
     }
 
 
