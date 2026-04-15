@@ -9,10 +9,13 @@ public class WinCondition : MonoBehaviour
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Turns turns;
     [SerializeField] private TileType[] walkableTypes = { TileType.City, TileType.Village, TileType.Road };
+    [SerializeField] private bool triggerTurnsWinWhenConnected = true;
 
     public GridTile[,] road;
     private GridTile currentTile;
     private bool hasWon;
+
+    public bool AllVillagesConnected => hasWon;
 
     private TileBuilding tileBuilding;
     private HashSet<Vector2Int> builtRoads;
@@ -33,15 +36,15 @@ public class WinCondition : MonoBehaviour
 
         if (gridMap == null)
         {
-            gridMap = FindObjectOfType<GridMap>();
+            gridMap = FindAnyObjectByType<GridMap>();
         }
 
         if (turns == null)
         {
-            turns = FindObjectOfType<Turns>();
+            turns = FindAnyObjectByType<Turns>();
         }
 
-        tileBuilding = FindObjectOfType<TileBuilding>();
+        tileBuilding = FindAnyObjectByType<TileBuilding>();
     }
 
     private IEnumerator Start()
@@ -83,7 +86,7 @@ public class WinCondition : MonoBehaviour
     {
         if (tileBuilding == null)
         {
-            tileBuilding = FindObjectOfType<TileBuilding>();
+            tileBuilding = FindAnyObjectByType<TileBuilding>();
         }
 
         if (tileBuilding == null)
@@ -139,6 +142,11 @@ public class WinCondition : MonoBehaviour
         if (allConnected && !hasWon)
         {
             hasWon = true;
+
+            if (!triggerTurnsWinWhenConnected)
+            {
+                return;
+            }
 
             if (turns != null)
             {
