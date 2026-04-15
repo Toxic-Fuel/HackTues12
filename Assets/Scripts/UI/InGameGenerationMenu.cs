@@ -51,9 +51,9 @@ public class InGameGenerationMenu : MonoBehaviour
     [Header("UI Scale")]
     [SerializeField] private bool scaleWithScreenShortSide = true;
     [SerializeField, Min(320f)] private float referenceShortSidePixels = 1080f;
-    [SerializeField, Range(0.7f, 2.2f)] private float minUiScale = 1f;
-    [SerializeField, Range(0.7f, 2.2f)] private float maxUiScale = 1.8f;
-    [SerializeField, Range(1f, 2.4f)] private float baseMenuScaleBoost = 1.25f;
+    [SerializeField, Range(0.5f, 2.2f)] private float minUiScale = 0.75f;
+    [SerializeField, Range(0.7f, 2.2f)] private float maxUiScale = 1.35f;
+    [SerializeField, Range(0.6f, 1.6f)] private float baseMenuScaleBoost = 0.9f;
     [SerializeField, Range(24f, 96f)] private float controlHeight = 58f;
 
     [Header("Regeneration")]
@@ -781,27 +781,27 @@ public class InGameGenerationMenu : MonoBehaviour
         float uiScale = ComputeUiScale();
         float widthScale = Mathf.Max(0.1f, Screen.width / 1920f);
         float heightScale = Mathf.Max(0.1f, Screen.height / 1080f);
-        float targetHeight = Mathf.Clamp(controlHeight * uiScale, 64f, 150f);
+        float targetHeight = Mathf.Clamp(controlHeight * uiScale, 48f, 112f);
 
         if (openButton != null)
         {
-            openButton.style.width = Mathf.Clamp(floatingButtonSize.x * uiScale, 180f, Screen.width * 0.70f);
-            openButton.style.height = Mathf.Clamp(floatingButtonSize.y * uiScale, 64f, Screen.height * 0.22f);
+            openButton.style.width = Mathf.Clamp(floatingButtonSize.x * uiScale, 140f, Screen.width * 0.55f);
+            openButton.style.height = Mathf.Clamp(floatingButtonSize.y * uiScale, 52f, Screen.height * 0.16f);
             openButton.style.left = 12f * uiScale;
             openButton.style.bottom = 12f * uiScale;
-            openButton.style.fontSize = Mathf.Clamp(24f * uiScale, 20f, 40f);
+            openButton.style.fontSize = Mathf.Clamp(21f * uiScale, 16f, 30f);
         }
 
         if (window != null)
         {
-            float windowWidth = Mathf.Clamp(Screen.width * 0.97f, 420f, 1280f * Mathf.Clamp(widthScale, 0.95f, 1.6f));
-            float windowHeight = Mathf.Clamp(Screen.height * 0.93f, 560f, Screen.height * 0.99f);
+            float windowWidth = Mathf.Clamp(Screen.width * 0.92f, 320f, 980f * Mathf.Clamp(widthScale, 0.85f, 1.2f));
+            float windowHeight = Mathf.Clamp(Screen.height * 0.82f, 460f, Screen.height * 0.88f);
             window.style.width = windowWidth;
             window.style.maxWidth = windowWidth;
             window.style.height = windowHeight;
-            window.style.minHeight = Mathf.Min(windowHeight, Screen.height * 0.82f);
-            window.style.maxHeight = Screen.height * 0.99f;
-            window.style.fontSize = Mathf.Clamp(22f * Mathf.Clamp(heightScale, 0.95f, 1.5f), 19f, 38f);
+            window.style.minHeight = Mathf.Min(windowHeight, Screen.height * 0.70f);
+            window.style.maxHeight = Screen.height * 0.90f;
+            window.style.fontSize = Mathf.Clamp(18f * Mathf.Clamp(heightScale, 0.85f, 1.2f), 16f, 28f);
         }
 
         SetControlMinHeight(seedField, targetHeight);
@@ -842,19 +842,20 @@ public class InGameGenerationMenu : MonoBehaviour
 
         float widthScale = Mathf.Max(0.1f, Screen.width / 1920f);
         float heightScale = Mathf.Max(0.1f, Screen.height / 1080f);
-        float aspectBalancedScale = Mathf.Sqrt(widthScale * heightScale);
-
         float shortSide = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height));
         float referenceSide = Mathf.Max(320f, referenceShortSidePixels);
         float shortSideScale = shortSide / referenceSide;
-        float rawScale = (aspectBalancedScale + shortSideScale) * 0.5f;
-        rawScale *= Mathf.Max(1f, baseMenuScaleBoost);
+        float narrowSideScale = Mathf.Min(widthScale, heightScale);
+
+        // Bias toward the narrow side so tall phones do not get oversized UI.
+        float rawScale = Mathf.Lerp(shortSideScale, narrowSideScale, 0.45f);
+        rawScale *= Mathf.Max(0.6f, baseMenuScaleBoost);
 
         // Touch devices need slightly larger controls for reliable finger interaction.
         bool touchDevice = Input.touchSupported || Touchscreen.current != null;
         if (touchDevice)
         {
-            rawScale *= 1.15f;
+            rawScale *= 1.03f;
         }
 
         float minScale = Mathf.Min(minUiScale, maxUiScale);
