@@ -20,6 +20,7 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private TileBuilding tileBuilding;
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private GridMap gridMap;
+    [SerializeField] private VillageCrisisSystem villageCrisisSystem;
     [SerializeField] private Canvas canvas;
     [SerializeField] private UnityEngine.Camera worldCamera;
     [SerializeField] private Turns turns;
@@ -111,6 +112,11 @@ public class TileBuildContextPanel : MonoBehaviour
         if (turns == null)
         {
             turns = FindAnyObjectByType<Turns>();
+        }
+
+        if (villageCrisisSystem == null)
+        {
+            villageCrisisSystem = FindAnyObjectByType<VillageCrisisSystem>();
         }
 
         if (questSfxManager == null)
@@ -1013,7 +1019,13 @@ public class TileBuildContextPanel : MonoBehaviour
 
     private int[] GetBuildingCost(Building building)
     {
-        return GetBuildingDataRow(buildingCost, building);
+        int[] baseCost = GetBuildingDataRow(buildingCost, building);
+        if (villageCrisisSystem == null)
+        {
+            return baseCost;
+        }
+
+        return villageCrisisSystem.GetAdjustedBuildCost(baseCost, building);
     }
 
     private int[] GetBuildingPerTurnIncome(Building building)

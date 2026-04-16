@@ -131,6 +131,7 @@ public class Turns : MonoBehaviour
         {
             CurrentResources[resourceIndex] -= cost[resourceIndex];
         }
+        RefreshUI();
         ResourcesGained?.Invoke(this);
         return true;
     }

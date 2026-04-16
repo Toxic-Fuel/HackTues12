@@ -9,7 +9,17 @@ public class ResourceTurnsUIDocument : MonoBehaviour
 
     [Header("Panel Scale")]
     [SerializeField] private string hudRootName = "hud-root";
-    [SerializeField, Min(0.1f)] private float panelScale = 1f;
+    [SerializeField, Min(0.1f)] private float panelScale = 0.72f;
+    [SerializeField, Min(0.1f)] private float manualScaleMultiplier = 1f;
+    [SerializeField] private bool autoScaleByShortSide = true;
+    [SerializeField, Min(320f)] private float referenceShortSidePixels = 1080f;
+    [SerializeField, Min(0.1f)] private float minAutoScale = 0.55f;
+    [SerializeField, Min(0.1f)] private float maxAutoScale = 1.2f;
+    [SerializeField] private bool reduceScaleOnPortraitScreens = true;
+    [SerializeField, Min(320f)] private float portraitMaxScreenWidthPixels = 1300f;
+    [SerializeField, Range(0.4f, 1f)] private float portraitScaleMultiplier = 0.58f;
+    [SerializeField, Range(0.3f, 1f)] private float portraitMaxEffectiveScale = 0.52f;
+    [SerializeField, Min(0f)] private float portraitTopInsetPixels = 15f;
 
     [Header("Label Names")]
     [SerializeField] private string turnsLabelName = "turns-value";
@@ -24,6 +34,8 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     private Label[] perTurnResourceLabels;
     private Button skipTurnButton;
     private VisualElement hudRoot;
+    private int cachedScreenWidth = -1;
+    private int cachedScreenHeight = -1;
 
     private void Awake()
     {
@@ -33,8 +45,23 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     private void OnEnable()
     {
         CacheElements();
-        ApplyPanelScale();
+        ApplyPanelScale(force: true);
         BindControls();
+    }
+
+    private void Update()
+    {
+        if (!autoScaleByShortSide)
+        {
+            return;
+        }
+
+        if (Screen.width == cachedScreenWidth && Screen.height == cachedScreenHeight)
+        {
+            return;
+        }
+
+        ApplyPanelScale(force: false);
     }
 
     private void OnDisable()
@@ -114,6 +141,14 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     private void OnValidate()
     {
         panelScale = Mathf.Max(0.1f, panelScale);
+        manualScaleMultiplier = Mathf.Max(0.1f, manualScaleMultiplier);
+        referenceShortSidePixels = Mathf.Max(320f, referenceShortSidePixels);
+        minAutoScale = Mathf.Max(0.1f, minAutoScale);
+        maxAutoScale = Mathf.Max(minAutoScale, maxAutoScale);
+        portraitMaxScreenWidthPixels = Mathf.Max(320f, portraitMaxScreenWidthPixels);
+        portraitScaleMultiplier = Mathf.Clamp(portraitScaleMultiplier, 0.4f, 1f);
+        portraitMaxEffectiveScale = Mathf.Clamp(portraitMaxEffectiveScale, 0.3f, 1f);
+        portraitTopInsetPixels = Mathf.Max(0f, portraitTopInsetPixels);
 
         if (!Application.isPlaying)
         {
@@ -121,25 +156,52 @@ public class ResourceTurnsUIDocument : MonoBehaviour
         }
 
         CacheElements();
-        ApplyPanelScale();
+        ApplyPanelScale(force: true);
     }
 
-    private void ApplyPanelScale()
+    private void ApplyPanelScale(bool force)
     {
         if (hudRoot == null)
         {
             return;
         }
 
+        if (!force && Screen.width == cachedScreenWidth && Screen.height == cachedScreenHeight)
+        {
+            return;
+        }
+
+        cachedScreenWidth = Screen.width;
+        cachedScreenHeight = Screen.height;
+
+        float autoScale = 1f;
+        if (autoScaleByShortSide)
+        {
+            float shortSide = Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height));
+            float reference = Mathf.Max(1f, referenceShortSidePixels);
+            autoScale = Mathf.Clamp(shortSide / reference, minAutoScale, maxAutoScale);
+        }
+
+        float effectiveScale = panelScale * manualScaleMultiplier * autoScale;
+        bool isPortraitPhoneScreen = Screen.height > Screen.width
+            && Screen.width <= portraitMaxScreenWidthPixels;
+
+        if (reduceScaleOnPortraitScreens
+            && isPortraitPhoneScreen)
+        {
+            effectiveScale *= portraitScaleMultiplier;
+            effectiveScale = Mathf.Min(effectiveScale, portraitMaxEffectiveScale);
+        }
+
         hudRoot.style.position = Position.Absolute;
         hudRoot.style.left = 0f;
-        hudRoot.style.top = 0f;
+        hudRoot.style.top = isPortraitPhoneScreen ? portraitTopInsetPixels : 0f;
         hudRoot.style.transformOrigin = new TransformOrigin(
             new Length(0f, LengthUnit.Percent),
             new Length(0f, LengthUnit.Percent),
             0f
         );
-        hudRoot.style.scale = new Scale(new Vector3(panelScale, panelScale, 1f));
+        hudRoot.style.scale = new Scale(new Vector3(effectiveScale, effectiveScale, 1f));
     }
 
     private void BindControls()

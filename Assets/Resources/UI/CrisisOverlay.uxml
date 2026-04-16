@@ -1,0 +1,50 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="crisis-ui-root" class="crisis-ui-root">
+        <ui:VisualElement name="crisis-panel" class="crisis-panel crisis-panel--normal">
+            <ui:VisualElement name="crisis-header" class="crisis-header">
+                <ui:Label name="crisis-title" class="crisis-title" text="Village Crisis" />
+                <ui:Button name="crisis-collapse-button" text="Hide" class="crisis-collapse-button" />
+            </ui:VisualElement>
+
+            <ui:Label name="crisis-summary" class="crisis-text" text="Stability 100/100 | Active 0 | Critical 0" />
+            <ui:Label name="crisis-gate" class="crisis-text" text="Victory gate: OPEN" />
+
+            <ui:VisualElement name="crisis-details" class="crisis-details">
+            <ui:Label name="crisis-spawn-rule" class="crisis-text" text="Next guaranteed crisis in 3 turn(s)." />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="crisis-details-lower" class="crisis-details">
+            <ui:Label name="crisis-type-effect" class="crisis-text" text="Type effect" />
+            <ui:Label name="crisis-selected-hint" class="crisis-text" text="No active crisis." />
+            <ui:Label name="crisis-resolve-hint" class="crisis-text" text="" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="crisis-actions" class="crisis-actions">
+                <ui:Button name="crisis-prev-button" text="Prev" class="crisis-button" />
+                <ui:Button name="crisis-respond-button" text="Respond" class="crisis-button crisis-button--primary" />
+                <ui:Button name="crisis-next-button" text="Next" class="crisis-button" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="crisis-cost-row" class="crisis-cost-row">
+                <ui:Label name="crisis-cost-label" class="crisis-cost-label" text="Cost:" />
+
+                <ui:VisualElement class="crisis-cost-item">
+                    <ui:VisualElement name="crisis-wood-icon" class="crisis-cost-icon" style="background-image: url(&quot;project://database/Assets/Texture/DURVA.png?fileID=2800000&amp;guid=0fc973a135dbae34eb42731655296477&amp;type=3&quot;);" />
+                    <ui:Label name="crisis-wood-cost" class="crisis-cost-value" text="x0" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="crisis-cost-item">
+                    <ui:VisualElement name="crisis-stone-icon" class="crisis-cost-icon" style="background-image: url(&quot;project://database/Assets/Texture/KAMANITE..png?fileID=2800000&amp;guid=bad4d878afd275946a0a057fd76298f2&amp;type=3&quot;);" />
+                    <ui:Label name="crisis-stone-cost" class="crisis-cost-value" text="x0" />
+                </ui:VisualElement>
+
+                <ui:Label name="crisis-action-cost" class="crisis-cost-action" text="+1 action" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="crisis-details-bottom" class="crisis-details">
+            <ui:Label name="crisis-controls" class="crisis-text crisis-text--muted" text="Controls: Previous/Next select, Interact respond" />
+            <ui:Label name="crisis-pressure" class="crisis-text" text="Pressure this turn: stability -0" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

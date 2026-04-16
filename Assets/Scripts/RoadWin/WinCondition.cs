@@ -10,6 +10,7 @@ public class WinCondition : MonoBehaviour
     [SerializeField] private Turns turns;
     [SerializeField] private TileType[] walkableTypes = { TileType.City, TileType.Village, TileType.Road };
     [SerializeField] private bool triggerTurnsWinWhenConnected = true;
+    [SerializeField] private VillageCrisisSystem crisisSystem;
 
     public GridTile[,] road;
     private GridTile currentTile;
@@ -45,6 +46,11 @@ public class WinCondition : MonoBehaviour
         }
 
         tileBuilding = FindAnyObjectByType<TileBuilding>();
+
+        if (crisisSystem == null)
+        {
+            crisisSystem = FindAnyObjectByType<VillageCrisisSystem>();
+        }
     }
 
     private IEnumerator Start()
@@ -139,7 +145,9 @@ public class WinCondition : MonoBehaviour
         Dictionary<Vector2Int, List<Vector2Int>> paths = FindShortestPaths(cityPos, villages);
 
         bool allConnected = paths.Count == villages.Count;
-        if (allConnected && !hasWon)
+        bool crisisGateOpen = crisisSystem == null || crisisSystem.CanDeclareVictory();
+
+        if (allConnected && crisisGateOpen && !hasWon)
         {
             hasWon = true;
 
@@ -157,7 +165,7 @@ public class WinCondition : MonoBehaviour
                 Debug.LogError("WinCondition: Turns reference is missing. Cannot trigger win.", this);
             }
         }
-        else if (!allConnected)
+        else if (!allConnected || !crisisGateOpen)
         {
             hasWon = false;
         }

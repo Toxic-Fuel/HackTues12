@@ -1,0 +1,363 @@
+:root {
+    --crisis-bg: rgba(232, 227, 205, 0.95);
+    --crisis-border: rgb(53, 60, 39);
+    --crisis-title: rgb(24, 28, 17);
+    --crisis-text: rgb(37, 43, 29);
+    --crisis-text-muted: rgb(76, 83, 61);
+    --crisis-critical: rgb(170, 46, 46);
+}
+
+.crisis-ui-root {
+    position: absolute;
+    left: auto;
+    right: 0;
+    top: 0;
+    bottom: auto;
+    width: auto;
+    height: auto;
+    pointer-events: auto;
+    align-items: flex-end;
+    justify-content: flex-start;
+}
+
+.crisis-panel {
+    margin-right: 12px;
+    margin-top: 12px;
+    width: 520px;
+    min-width: 420px;
+    max-width: 92%;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: var(--crisis-border);
+    border-right-color: var(--crisis-border);
+    border-bottom-color: var(--crisis-border);
+    border-left-color: var(--crisis-border);
+    border-radius: 8px;
+    background-color: var(--crisis-bg);
+    pointer-events: auto;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.crisis-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    pointer-events: auto;
+    flex-shrink: 0;
+}
+
+.crisis-details {
+    flex-direction: column;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+
+.crisis-panel--compact {
+    width: 440px;
+    min-width: 360px;
+    max-width: 95%;
+    margin-right: 8px;
+    margin-top: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.crisis-panel--normal {
+    width: 520px;
+    max-width: 92%;
+}
+
+.crisis-panel--large {
+    width: 620px;
+    max-width: 94%;
+}
+
+.crisis-title {
+    -unity-font-style: bold;
+    font-size: 21px;
+    color: var(--crisis-title);
+    margin-bottom: 0;
+    margin-right: 8px;
+    flex-grow: 1;
+    flex-shrink: 0;
+}
+
+.crisis-collapse-button {
+    min-width: 76px;
+    min-height: 36px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    padding-left: 10px;
+    padding-right: 10px;
+    color: rgb(29, 35, 22);
+    background-color: rgb(195, 204, 157);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(58, 66, 43);
+    border-right-color: rgb(58, 66, 43);
+    border-bottom-color: rgb(58, 66, 43);
+    border-left-color: rgb(58, 66, 43);
+    border-radius: 6px;
+    pointer-events: auto;
+}
+
+.crisis-title--critical {
+    color: var(--crisis-critical);
+}
+
+.crisis-cost-label {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--crisis-text-muted);
+    margin-right: 6px;
+}
+
+.crisis-collapse-button:hover {
+    background-color: rgb(208, 216, 172);
+}
+
+.crisis-collapse-button:active {
+    background-color: rgb(175, 184, 140);
+}
+
+.crisis-text {
+    font-size: 21px;
+    color: var(--crisis-text);
+    margin-bottom: 4px;
+    white-space: normal;
+    flex-shrink: 0;
+}
+
+.crisis-cost-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-top: 2px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
+.crisis-cost-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.crisis-cost-icon {
+    width: 24px;
+    height: 24px;
+    -unity-background-scale-mode: scale-to-fit;
+    flex-shrink: 0;
+}
+
+.crisis-cost-value {
+    font-size: 19px;
+    -unity-font-style: bold;
+    color: var(--crisis-text);
+    min-width: 24px;
+}
+
+.crisis-cost-action {
+    font-size: 18px;
+    color: var(--crisis-text-muted);
+    margin-left: 4px;
+}
+
+.crisis-text--muted {
+    color: var(--crisis-text-muted);
+}
+
+.crisis-text--critical {
+    color: var(--crisis-critical);
+    -unity-font-style: bold;
+}
+
+.crisis-actions {
+    flex-direction: row;
+    gap: 8px;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    pointer-events: auto;
+    flex-shrink: 0;
+}
+
+.crisis-button {
+    flex-grow: 1;
+    min-height: 40px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(29, 35, 22);
+    background-color: rgb(181, 191, 136);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(58, 66, 43);
+    border-right-color: rgb(58, 66, 43);
+    border-bottom-color: rgb(58, 66, 43);
+    border-left-color: rgb(58, 66, 43);
+    border-radius: 6px;
+    transition-property: background-color;
+    transition-duration: 0.12s;
+    transition-timing-function: ease-out;
+}
+
+.crisis-button:hover {
+    background-color: rgb(198, 207, 155);
+}
+
+.crisis-button:active {
+    background-color: rgb(167, 177, 131);
+}
+
+.crisis-button--primary {
+    background-color: rgb(181, 191, 136);
+}
+
+.crisis-button--primary:hover {
+    background-color: rgb(198, 207, 155);
+}
+
+.crisis-button--primary:active {
+    background-color: rgb(167, 177, 131);
+}
+
+.crisis-panel--compact .crisis-title {
+    font-size: 20px;
+}
+
+.crisis-panel--compact .crisis-collapse-button {
+    min-width: 72px;
+    min-height: 34px;
+    font-size: 14px;
+}
+
+.crisis-panel--compact .crisis-text {
+    font-size: 19px;
+}
+
+.crisis-panel--compact .crisis-cost-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.crisis-panel--compact .crisis-cost-value {
+    font-size: 16px;
+}
+
+.crisis-panel--compact .crisis-cost-action {
+    font-size: 15px;
+}
+
+.crisis-panel--compact .crisis-button {
+    min-height: 36px;
+    font-size: 16px;
+}
+
+.crisis-panel--large .crisis-title {
+    font-size: 23px;
+}
+
+.crisis-panel--large .crisis-collapse-button {
+    min-width: 86px;
+    min-height: 40px;
+    font-size: 15px;
+}
+
+.crisis-panel--large .crisis-text {
+    font-size: 22px;
+}
+
+.crisis-panel--large .crisis-cost-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.crisis-panel--large .crisis-cost-value {
+    font-size: 19px;
+}
+
+.crisis-panel--large .crisis-cost-action {
+    font-size: 18px;
+}
+
+.crisis-panel--large .crisis-button {
+    min-height: 42px;
+    font-size: 18px;
+}
+
+.crisis-panel--phone-portrait {
+    width: 67%;
+    min-width: 195px;
+    max-width: 74%;
+    min-height: 248px;
+    margin-right: 6px;
+    margin-top: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+}
+
+.crisis-panel--phone-portrait .crisis-title {
+    font-size: 22px;
+}
+
+.crisis-panel--phone-portrait .crisis-collapse-button {
+    min-width: 74px;
+    min-height: 36px;
+    font-size: 15px;
+}
+
+.crisis-panel--phone-portrait .crisis-text {
+    font-size: 19px;
+    margin-bottom: 4px;
+}
+
+.crisis-panel--phone-portrait .crisis-cost-row {
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.crisis-panel--phone-portrait .crisis-cost-icon {
+    width: 19px;
+    height: 19px;
+}
+
+.crisis-panel--phone-portrait .crisis-cost-value {
+    font-size: 18px;
+    min-width: 20px;
+}
+
+.crisis-panel--phone-portrait .crisis-cost-action {
+    font-size: 17px;
+}
+
+.crisis-panel--phone-portrait .crisis-cost-label {
+    font-size: 18px;
+}
+
+.crisis-panel--phone-portrait .crisis-actions {
+    gap: 4px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.crisis-panel--phone-portrait .crisis-button {
+    min-height: 34px;
+    font-size: 17px;
+}

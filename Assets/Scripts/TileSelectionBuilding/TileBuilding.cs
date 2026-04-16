@@ -22,6 +22,7 @@ public class TileBuilding : MonoBehaviour
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private TileBuildContextPanel tileBuildContextPanel;
     [SerializeField] private FogOfWarController fogOfWar;
+    [SerializeField] private VillageCrisisSystem villageCrisisSystem;
 
     [Header("Road Prefabs")]
     [SerializeField] private GameObject roadVerticalPrefab;
@@ -222,6 +223,11 @@ public class TileBuilding : MonoBehaviour
         if (fogOfWar == null)
         {
             fogOfWar = FindAnyObjectByType<FogOfWarController>();
+        }
+
+        if (villageCrisisSystem == null)
+        {
+            villageCrisisSystem = FindAnyObjectByType<VillageCrisisSystem>();
         }
 
         if (mainCamera == null)
@@ -804,6 +810,11 @@ public class TileBuilding : MonoBehaviour
         }
 
         ApplyDynamicRoadCostScaling(cost);
+
+        if (villageCrisisSystem != null)
+        {
+            cost = villageCrisisSystem.GetAdjustedBuildCost(cost, Building.Road);
+        }
 
         return true;
     }
