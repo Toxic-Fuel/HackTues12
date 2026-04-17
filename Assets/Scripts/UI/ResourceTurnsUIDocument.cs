@@ -10,7 +10,7 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     [Header("Panel Scale")]
     [SerializeField] private string hudRootName = "hud-root";
     [SerializeField, Min(0.1f)] private float panelScale = 0.72f;
-    [SerializeField, Min(0.1f)] private float manualScaleMultiplier = 1f;
+    [SerializeField, Min(0.1f)] private float manualScaleMultiplier = 0.8f;
     [SerializeField] private bool autoScaleByShortSide = true;
     [SerializeField, Min(320f)] private float referenceShortSidePixels = 1080f;
     [SerializeField, Min(0.1f)] private float minAutoScale = 0.55f;

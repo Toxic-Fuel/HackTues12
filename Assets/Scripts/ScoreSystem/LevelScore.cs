@@ -9,10 +9,10 @@ namespace ScoreSystem
         Time,
         Buildings
     }
-    
+
     public class LevelScore : MonoBehaviour
     {
-        [Min(0)] [SerializeField] private int scoreValue;
+        [Min(0)][SerializeField] private int scoreValue;
         [SerializeField] private float[] scoreMultipliers;
         [SerializeField] private float difficultyMultiplier = 1f;
         [SerializeField] private float turnMultiplier = 1f;
@@ -22,7 +22,7 @@ namespace ScoreSystem
         private readonly Stopwatch _timePassed = new Stopwatch();
         private int _turnsUsed;
         private bool _isEndScoreCalculated;
-        
+
         public int ScoreValue
         {
             get => scoreValue;
@@ -66,7 +66,7 @@ namespace ScoreSystem
         public void AddDefaultScore(float value) => AddToScore(value, ScoreType.Default);
         public void AddTimeScore(float value) => AddToScore(value, ScoreType.Time);
         public void AddBuildingScore(float value) => AddToScore(value, ScoreType.Buildings);
-        
+
         public void CalculateEndScore()
         {
             if (_isEndScoreCalculated)

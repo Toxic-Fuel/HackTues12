@@ -95,7 +95,7 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField, Range(0.65f, 1.25f)] private float compactScaleThreshold = 0.72f;
     [SerializeField, Range(1.0f, 1.8f)] private float largeScaleThreshold = 1.28f;
     [SerializeField, Range(0.8f, 1.5f)] private float baseScaleBoost = 1.05f;
-    [SerializeField, Range(0.7f, 1.2f)] private float globalOverlayScaleMultiplier = 0.90f;
+    [SerializeField, Range(0.7f, 1.2f)] private float globalOverlayScaleMultiplier = 0.80f;
     [SerializeField, Min(0.5f)] private float minOverlayVisualScale = 1f;
     [SerializeField, Min(0.5f)] private float maxOverlayVisualScale = 1.6f;
     [SerializeField] private bool usePhonePortraitLayout = true;
