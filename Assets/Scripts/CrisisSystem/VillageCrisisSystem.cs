@@ -17,6 +17,7 @@ public class VillageCrisisSystem : MonoBehaviour
         public int ageTurns;
         public bool isActive;
         public GameObject marker;
+        public Vector3 markerBaseScale;
     }
 
     [Header("References")]
@@ -69,6 +70,7 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField] private bool textureMarkerFacesCamera = true;
     [SerializeField] private Camera markerBillboardCamera;
     [SerializeField] private Vector3 markerOffset = new Vector3(0f, 1.7f, 0f);
+    [SerializeField, Min(0.01f)] private float prefabMarkerScaleMultiplier = 0.20f;
     [SerializeField] private bool pulseMarkers = true;
     [SerializeField, Min(0.1f)] private float markerPulseSpeed = 3f;
     [SerializeField, Range(0f, 0.4f)] private float markerPulseAmplitude = 0.12f;
@@ -272,7 +274,7 @@ public class VillageCrisisSystem : MonoBehaviour
                 AlignMarkerToCamera(crisis.marker.transform);
             }
 
-            crisis.marker.transform.localScale = Vector3.one * pulse;
+            crisis.marker.transform.localScale = crisis.markerBaseScale * pulse;
         }
     }
 
@@ -723,6 +725,8 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        GameObject markerInstance = CreateMarker(villageCoordinate);
+
         var crisis = new VillageCrisisState
         {
             coordinate = villageCoordinate,
@@ -730,7 +734,8 @@ public class VillageCrisisSystem : MonoBehaviour
             severity = Mathf.Clamp(initialSeverity, 1, 100),
             ageTurns = 0,
             isActive = true,
-            marker = CreateMarker(villageCoordinate)
+            marker = markerInstance,
+            markerBaseScale = markerInstance != null ? markerInstance.transform.localScale : Vector3.one
         };
 
         _activeCrises.Add(crisis);
@@ -771,6 +776,8 @@ public class VillageCrisisSystem : MonoBehaviour
         if (crisisMarkerPrefab != null)
         {
             marker = Instantiate(crisisMarkerPrefab, markerPosition, Quaternion.identity, transform);
+            float safeScaleMultiplier = Mathf.Max(0.01f, prefabMarkerScaleMultiplier);
+            marker.transform.localScale *= safeScaleMultiplier;
         }
         else
         {
@@ -1855,6 +1862,17 @@ public class VillageCrisisSystem : MonoBehaviour
         int disconnectedVillages = CountDisconnectedVillagesFromCity();
         bool gateOpen = CanDeclareVictory();
         bool allowLongHints = showRuleHints && !_isMiniMode && !string.Equals(_activeScaleClass, "crisis-panel--compact", StringComparison.Ordinal);
+        int selectedSeverity = -1;
+
+        if (_activeCrises.Count > 0)
+        {
+            int selectedIndexForSummary = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
+            VillageCrisisState selectedForSummary = _activeCrises[selectedIndexForSummary];
+            if (selectedForSummary != null)
+            {
+                selectedSeverity = Mathf.Clamp(selectedForSummary.severity, 0, 100);
+            }
+        }
 
         if (_titleLabel != null)
         {
@@ -1885,7 +1903,8 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (_summaryLabel != null)
         {
-            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count} | Critical {criticalCount}";
+            string severityText = selectedSeverity >= 0 ? $"{selectedSeverity}/100" : "-";
+            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count} | Critical {criticalCount} | Severity {severityText}";
         }
 
         if (_gateLabel != null)
