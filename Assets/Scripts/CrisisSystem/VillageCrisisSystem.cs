@@ -39,6 +39,8 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField, Min(1)] private int severityGainPerTurnMax = 8;
     [SerializeField, Range(0f, 1f)] private float spreadChance = 0.08f;
     [SerializeField, Min(1)] private int criticalSeverityThreshold = 90;
+    [SerializeField, Min(0)] private int postResolveSpawnGraceTurns = 2;
+    [SerializeField, Min(0)] private int postResolveSpreadGraceTurns = 1;
 
     [Header("Player Response")]
     [SerializeField, Min(1)] private int responseActionCost = 1;
@@ -126,6 +128,8 @@ public class VillageCrisisSystem : MonoBehaviour
     private int _stability;
     private bool _initialized;
     private int _turnsUntilGuaranteedSpawn;
+    private int _spawnGraceTurnsRemaining;
+    private int _spreadGraceTurnsRemaining;
     private int _lastComputedStabilityDrain;
     private string _responseStatusMessage = "No action yet.";
     private float _responseStatusTimestamp;
@@ -528,6 +532,8 @@ public class VillageCrisisSystem : MonoBehaviour
         _selectedCrisisIndex = 0;
         _stability = Mathf.Clamp(startingStability, 0, 100);
         _turnsUntilGuaranteedSpawn = Mathf.Max(1, guaranteedSpawnIntervalTurns);
+        _spawnGraceTurnsRemaining = 0;
+        _spreadGraceTurnsRemaining = 0;
         _lastComputedStabilityDrain = 0;
         SetResponseStatus("Crisis system initialized.");
         _initialized = _allVillages.Count > 0;
@@ -554,10 +560,20 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         RebuildConnectivityCache();
+        bool allowSpread = ConsumeSpreadGraceTurn();
+        bool allowSpawn = ConsumeSpawnGraceTurn();
         EscalateCrises();
-        TrySpreadCrises();
-        bool guaranteedSpawn = AdvanceGuaranteedSpawnTimer();
-        TrySpawnCrisis(forceSpawn: false, guaranteedSpawnFromTimer: guaranteedSpawn);
+        if (allowSpread)
+        {
+            TrySpreadCrises();
+        }
+
+        if (allowSpawn)
+        {
+            bool guaranteedSpawn = AdvanceGuaranteedSpawnTimer();
+            TrySpawnCrisis(forceSpawn: false, guaranteedSpawnFromTimer: guaranteedSpawn);
+        }
+
         ApplyStabilityPressure();
 
         NotifyStateChanged();
@@ -623,8 +639,6 @@ public class VillageCrisisSystem : MonoBehaviour
             }
 
             CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(35, 61));
-            CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(22, 44));
-            CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(28, 48));
         }
     }
 
@@ -702,6 +716,9 @@ public class VillageCrisisSystem : MonoBehaviour
 
         _activeCrises.Remove(crisis);
         _stability = Mathf.Clamp(_stability + resolveStabilityReward, 0, 100);
+        _spawnGraceTurnsRemaining = Mathf.Max(_spawnGraceTurnsRemaining, Mathf.Max(0, postResolveSpawnGraceTurns));
+        _spreadGraceTurnsRemaining = Mathf.Max(_spreadGraceTurnsRemaining, Mathf.Max(0, postResolveSpreadGraceTurns));
+        _turnsUntilGuaranteedSpawn = Mathf.Max(1, guaranteedSpawnIntervalTurns);
 
         if (levelScore != null)
         {
@@ -746,6 +763,28 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             Debug.Log($"New crisis: {type} at {villageCoordinate}, severity {crisis.severity}", this);
         }
+    }
+
+    private bool ConsumeSpawnGraceTurn()
+    {
+        if (_spawnGraceTurnsRemaining <= 0)
+        {
+            return true;
+        }
+
+        _spawnGraceTurnsRemaining = Mathf.Max(0, _spawnGraceTurnsRemaining - 1);
+        return false;
+    }
+
+    private bool ConsumeSpreadGraceTurn()
+    {
+        if (_spreadGraceTurnsRemaining <= 0)
+        {
+            return true;
+        }
+
+        _spreadGraceTurnsRemaining = Mathf.Max(0, _spreadGraceTurnsRemaining - 1);
+        return false;
     }
 
     private GameObject CreateMarker(Vector2Int coordinate)
@@ -1386,6 +1425,11 @@ public class VillageCrisisSystem : MonoBehaviour
             _overlayRoot.pickingMode = PickingMode.Ignore;
         }
 
+        if (_overlayContainer != null)
+        {
+            _overlayContainer.pickingMode = PickingMode.Ignore;
+        }
+
         if (_overlayPanel != null)
         {
             _overlayPanel.pickingMode = PickingMode.Ignore;
@@ -1784,6 +1828,29 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         bounds = hudBounds;
+        return true;
+    }
+
+    public bool TryGetOverlayPanelScreenBounds(out Rect bounds)
+    {
+        bounds = default;
+        if (!_overlayUiInitialized || !showOverlay || _overlayRoot == null || _overlayPanel == null)
+        {
+            return false;
+        }
+
+        if (_overlayRoot.resolvedStyle.display == DisplayStyle.None)
+        {
+            return false;
+        }
+
+        Rect panelBounds = _overlayPanel.worldBound;
+        if (panelBounds.width <= 1f || panelBounds.height <= 1f)
+        {
+            return false;
+        }
+
+        bounds = panelBounds;
         return true;
     }
 
@@ -2207,13 +2274,15 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private void ApplyDemoFriendlyBalancePreset()
     {
-        maxActiveCrises = Mathf.Clamp(maxActiveCrises, 1, 3);
-        baseSpawnChance = 0.24f;
-        guaranteedSpawnIntervalTurns = Mathf.Max(4, guaranteedSpawnIntervalTurns);
+        maxActiveCrises = Mathf.Clamp(maxActiveCrises, 1, 2);
+        baseSpawnChance = 0.14f;
+        guaranteedSpawnIntervalTurns = Mathf.Max(6, guaranteedSpawnIntervalTurns);
         severityGainPerTurnMin = 2;
         severityGainPerTurnMax = 6;
-        spreadChance = 0.06f;
+        spreadChance = 0.025f;
         criticalSeverityThreshold = Mathf.Max(90, criticalSeverityThreshold);
+        postResolveSpawnGraceTurns = Mathf.Max(2, postResolveSpawnGraceTurns);
+        postResolveSpreadGraceTurns = Mathf.Max(1, postResolveSpreadGraceTurns);
 
         responseActionCost = Mathf.Max(1, responseActionCost);
         baseResponsePower = Mathf.Max(55, baseResponsePower);

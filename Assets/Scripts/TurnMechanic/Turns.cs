@@ -29,6 +29,8 @@ public class Turns : MonoBehaviour
 
     [Header("Starting Resources")]
     [SerializeField, Min(0)] private int[] startingResources;
+    [SerializeField, Min(0)] private int defaultStartingWood = 10;
+    [SerializeField, Min(0)] private int defaultStartingStone = 10;
 
     [Header("Input")]
     [SerializeField] private InputActionReference endTurnAction;
@@ -277,6 +279,21 @@ public class Turns : MonoBehaviour
     public void StartEncounter()
     {
         EnsureResourceArrays();
+
+        int woodIndex = (int)ResourceType.Wood;
+        int stoneIndex = (int)ResourceType.Stone;
+        if (startingResources != null)
+        {
+            if (woodIndex >= 0 && woodIndex < startingResources.Length)
+            {
+                startingResources[woodIndex] = Mathf.Max(0, defaultStartingWood);
+            }
+
+            if (stoneIndex >= 0 && stoneIndex < startingResources.Length)
+            {
+                startingResources[stoneIndex] = Mathf.Max(0, defaultStartingStone);
+            }
+        }
 
         if (actionsPerTurn <= 0)
         {
