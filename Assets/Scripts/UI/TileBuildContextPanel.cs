@@ -336,6 +336,14 @@ public class TileBuildContextPanel : MonoBehaviour
             UpdateQuestPanelContent(tileInstance);
             return;
         }
+        if (tile.tileType == TileType.Village)
+        {
+            selectedOption = Building.None;
+            UpdateSelectionVisuals();
+            SetQuestPanelVisible(false);
+            SetPanelVisible(false);
+            return;
+        }
 
         currentQuest = null;
         SetQuestPanelVisible(false);
