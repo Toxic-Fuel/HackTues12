@@ -17,9 +17,10 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     [SerializeField, Min(0.1f)] private float maxAutoScale = 1.2f;
     [SerializeField] private bool reduceScaleOnPortraitScreens = true;
     [SerializeField, Min(320f)] private float portraitMaxScreenWidthPixels = 1300f;
-    [SerializeField, Range(0.4f, 1f)] private float portraitScaleMultiplier = 0.58f;
-    [SerializeField, Range(0.3f, 1f)] private float portraitMaxEffectiveScale = 0.52f;
-    [SerializeField, Min(0f)] private float portraitTopInsetPixels = 15f;
+    [SerializeField, Range(0.4f, 1f)] private float portraitScaleMultiplier = 0.7f;
+    [SerializeField, Range(0.3f, 1f)] private float portraitMinEffectiveScale = 0.55f;
+    [SerializeField, Range(0.3f, 1f)] private float portraitMaxEffectiveScale = 0.7f;
+    [SerializeField, Min(0f)] private float portraitTopInsetPixels = 20f;
 
     [Header("Label Names")]
     [SerializeField] private string turnsLabelName = "turns-value";
@@ -147,7 +148,12 @@ public class ResourceTurnsUIDocument : MonoBehaviour
         maxAutoScale = Mathf.Max(minAutoScale, maxAutoScale);
         portraitMaxScreenWidthPixels = Mathf.Max(320f, portraitMaxScreenWidthPixels);
         portraitScaleMultiplier = Mathf.Clamp(portraitScaleMultiplier, 0.4f, 1f);
+        portraitMinEffectiveScale = Mathf.Clamp(portraitMinEffectiveScale, 0.3f, 1f);
         portraitMaxEffectiveScale = Mathf.Clamp(portraitMaxEffectiveScale, 0.3f, 1f);
+        if (portraitMaxEffectiveScale < portraitMinEffectiveScale)
+        {
+            portraitMaxEffectiveScale = portraitMinEffectiveScale;
+        }
         portraitTopInsetPixels = Mathf.Max(0f, portraitTopInsetPixels);
 
         if (!Application.isPlaying)
@@ -190,7 +196,9 @@ public class ResourceTurnsUIDocument : MonoBehaviour
             && isPortraitPhoneScreen)
         {
             effectiveScale *= portraitScaleMultiplier;
-            effectiveScale = Mathf.Min(effectiveScale, portraitMaxEffectiveScale);
+            float minScale = Mathf.Min(portraitMinEffectiveScale, portraitMaxEffectiveScale);
+            float maxScale = Mathf.Max(portraitMinEffectiveScale, portraitMaxEffectiveScale);
+            effectiveScale = Mathf.Clamp(effectiveScale, minScale, maxScale);
         }
 
         hudRoot.style.position = Position.Absolute;
