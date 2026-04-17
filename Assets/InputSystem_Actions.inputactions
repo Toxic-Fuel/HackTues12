@@ -185,6 +185,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Close Menu",
+                    "type": "Button",
+                    "id": "aae23c1d-eda9-4969-92d6-ccbecb6b7132",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -757,6 +766,17 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "Respond Crisis",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "9e1ec9b9-d077-4102-88cb-d432720ddc25",
+                    "path": "<Keyboard>/escape",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Close Menu",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

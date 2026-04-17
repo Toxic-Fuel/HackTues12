@@ -49,7 +49,24 @@
     -unity-font-style: bold;
     -unity-text-align: middle-center;
     color: #42441B;
+    margin-bottom: 0;
+}
+
+.endgame-header {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 8px;
+}
+
+.endgame-close-button {
+    width: 56px;
+    height: 44px;
+    font-size: 24px;
+    -unity-font-style: bold;
+    background-color: #ADB784;
+    color: #42441B;
 }
 
 .result-title {

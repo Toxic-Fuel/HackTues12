@@ -8,7 +8,10 @@
 
     <ui:VisualElement name="EndGameOverlay" class="endgame-overlay endgame-overlay--open">
         <ui:VisualElement name="EndGamePanel" class="endgame-panel endgame-panel--open">
-            <ui:Label name="SummaryTitle" text="Summary" class="summary-title"/>
+            <ui:VisualElement name="EndGameHeader" class="endgame-header">
+                <ui:Label name="SummaryTitle" text="Summary" class="summary-title"/>
+                <ui:Button name="CloseSummaryButton" text="X" class="endgame-close-button"/>
+            </ui:VisualElement>
             <ui:Label name="ResultTitle" text="Result" class="result-title"/>
 
             <ui:VisualElement name="EndGameBody" class="endgame-body">

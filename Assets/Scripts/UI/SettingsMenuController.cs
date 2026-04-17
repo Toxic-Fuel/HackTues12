@@ -2,6 +2,7 @@
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(UIDocument))]
 public class SettingsMenuController : MonoBehaviour
@@ -16,6 +17,9 @@ public class SettingsMenuController : MonoBehaviour
 
     [Header("Disable While Settings Menu Is Open")]
     [SerializeField] private List<Component> componentsToDisableWhenMenuEnabled = new List<Component>();
+
+    [Header("Input Actions")]
+    [SerializeField] private InputActionReference closeMenuAction;
 
     private SliderInt _sfxSlider;
     private SliderInt _musicSlider;
@@ -61,6 +65,8 @@ public class SettingsMenuController : MonoBehaviour
 
     private void OnEnable()
     {
+        RegisterInputActions();
+
         CacheTargetControllers();
         LoadSavedSettingsToState();
         ApplyCurrentSettings();
@@ -75,6 +81,8 @@ public class SettingsMenuController : MonoBehaviour
 
     private void OnDisable()
     {
+        UnregisterInputActions();
+
         if (_hasLoadedSettings)
         {
             SaveCurrentSettings();
@@ -558,6 +566,40 @@ public class SettingsMenuController : MonoBehaviour
         _lastMenuVisibleState = false;
         ApplyMenuEnabledState(false);
     }
+
+    private void RegisterInputActions()
+    {
+        if (closeMenuAction == null || closeMenuAction.action == null)
+        {
+            return;
+        }
+
+        closeMenuAction.action.performed -= OnCloseMenuPerformed;
+        closeMenuAction.action.performed += OnCloseMenuPerformed;
+        closeMenuAction.action.Enable();
+    }
+
+    private void UnregisterInputActions()
+    {
+        if (closeMenuAction == null || closeMenuAction.action == null)
+        {
+            return;
+        }
+
+        closeMenuAction.action.performed -= OnCloseMenuPerformed;
+        closeMenuAction.action.Disable();
+    }
+
+    private void OnCloseMenuPerformed(InputAction.CallbackContext context)
+    {
+        if (!context.performed || settingsDocument == null || !settingsDocument.enabled)
+        {
+            return;
+        }
+
+        OnCloseClicked();
+    }
+
     public void OnOpenSettingsMenu()
     {
         if (settingsDocument != null)
