@@ -8,7 +8,7 @@
             </ui:VisualElement>
             <ui:VisualElement style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 2px;">
                 <ui:Label name="skip-turn-hint" text="Press P or tap button" style="font-size: 28px; color: rgb(0, 0, 0);"/>
-                <ui:Button name="skip-turn-button" text="Pass Turn" style="height: 66px; min-width: 214px; margin-top: 0; padding-left: 16px; padding-right: 16px; font-size: 30px; color: rgb(0, 0, 0); background-color: rgba(0, 0, 0, 0.1); border-top-left-radius: 14px; border-top-right-radius: 14px; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(0, 0, 0); border-right-color: rgb(0, 0, 0); border-top-color: rgb(0, 0, 0); border-bottom-color: rgb(0, 0, 0);"/>
+                <ui:Button name="skip-turn-button" text="Pass Turn" style="height: 66px; min-width: 214px; margin-top: 0; padding-left: 16px; padding-right: 16px; font-size: 30px; color: rgb(0, 0, 0); background-color: rgb(173, 183, 132); border-top-left-radius: 14px; border-top-right-radius: 14px; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-left-color: rgb(0, 0, 0); border-right-color: rgb(0, 0, 0); border-top-color: rgb(0, 0, 0); border-bottom-color: rgb(0, 0, 0);"/>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="resources-column" style="flex-grow: 0; gap: 14px; justify-content: center; padding-right: 0; margin-left: 74px;">

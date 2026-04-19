@@ -1,9 +1,9 @@
 :root {
-    --crisis-bg: rgba(232, 227, 205, 0.95);
+    --crisis-bg: rgba(232, 227, 205, 0.98);
     --crisis-border: rgb(53, 60, 39);
-    --crisis-title: rgb(24, 28, 17);
-    --crisis-text: rgb(37, 43, 29);
-    --crisis-text-muted: rgb(76, 83, 61);
+    --crisis-title: rgb(0, 0, 0);
+    --crisis-text: rgb(0, 0, 0);
+    --crisis-text-muted: rgb(26, 33, 22);
     --crisis-critical: rgb(170, 46, 46);
 }
 
@@ -23,13 +23,13 @@
 .crisis-panel {
     margin-right: 12px;
     margin-top: 12px;
-    width: 520px;
-    min-width: 420px;
-    max-width: 92%;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    width: 700px;
+    min-width: 600px;
+    max-width: 96%;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     border-top-width: 2px;
     border-right-width: 2px;
     border-bottom-width: 2px;
@@ -40,6 +40,14 @@
     border-left-color: var(--crisis-border);
     border-radius: 8px;
     background-color: var(--crisis-bg);
+    background-image: url("project://database/Assets/Texture/BACKGORUNDTILED.png?fileID=2800000&guid=0a7e11f3cbc595943a925af597caf920&type=3#BACKGORUNDTILED");
+    background-repeat: no-repeat;
+    -unity-slice-type: tiled;
+    -unity-slice-left: 28;
+    -unity-slice-right: 28;
+    -unity-slice-top: 28;
+    -unity-slice-bottom: 28;
+    -unity-slice-scale: 1.25px;
     pointer-events: auto;
     flex-direction: column;
     flex-shrink: 0;
@@ -50,42 +58,42 @@
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     pointer-events: auto;
     flex-shrink: 0;
 }
 
 .crisis-details {
     flex-direction: column;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     flex-shrink: 0;
 }
 
 .crisis-panel--compact {
-    width: 440px;
-    min-width: 360px;
+    width: 640px;
+    min-width: 540px;
     max-width: 95%;
     margin-right: 8px;
     margin-top: 8px;
-    padding-left: 8px;
-    padding-right: 8px;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-top: 9px;
+    padding-bottom: 9px;
 }
 
 .crisis-panel--normal {
-    width: 520px;
-    max-width: 92%;
+    width: 700px;
+    max-width: 96%;
 }
 
 .crisis-panel--large {
-    width: 620px;
+    width: 820px;
     max-width: 94%;
 }
 
 .crisis-title {
     -unity-font-style: bold;
-    font-size: 21px;
+    font-size: 30px;
     color: var(--crisis-title);
     margin-bottom: 0;
     margin-right: 8px;
@@ -95,9 +103,9 @@
 
 .crisis-collapse-button {
     min-width: 76px;
-    min-height: 36px;
-    font-size: 15px;
-    -unity-font-style: bold;
+    min-height: 34px;
+    font-size: 23px;
+    -unity-font-style: normal;
     padding-left: 10px;
     padding-right: 10px;
     color: rgb(29, 35, 22);
@@ -119,8 +127,8 @@
 }
 
 .crisis-cost-label {
-    font-size: 18px;
-    -unity-font-style: bold;
+    font-size: 27px;
+    -unity-font-style: normal;
     color: var(--crisis-text-muted);
     margin-right: 6px;
 }
@@ -134,9 +142,10 @@
 }
 
 .crisis-text {
-    font-size: 21px;
+    font-size: 27px;
+    -unity-font-style: normal;
     color: var(--crisis-text);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     white-space: normal;
     flex-shrink: 0;
 }
@@ -144,9 +153,9 @@
 .crisis-cost-row {
     flex-direction: row;
     align-items: center;
-    gap: 12px;
-    margin-top: 2px;
-    margin-bottom: 6px;
+    gap: 10px;
+    margin-top: 1px;
+    margin-bottom: 4px;
     flex-shrink: 0;
 }
 
@@ -165,14 +174,14 @@
 }
 
 .crisis-cost-value {
-    font-size: 19px;
-    -unity-font-style: bold;
+    font-size: 28px;
+    -unity-font-style: normal;
     color: var(--crisis-text);
     min-width: 24px;
 }
 
 .crisis-cost-action {
-    font-size: 18px;
+    font-size: 29px;
     color: var(--crisis-text-muted);
     margin-left: 4px;
 }
@@ -183,23 +192,23 @@
 
 .crisis-text--critical {
     color: var(--crisis-critical);
-    -unity-font-style: bold;
+    -unity-font-style: normal;
 }
 
 .crisis-actions {
     flex-direction: row;
     gap: 8px;
-    margin-top: 6px;
-    margin-bottom: 6px;
+    margin-top: 4px;
+    margin-bottom: 4px;
     pointer-events: auto;
     flex-shrink: 0;
 }
 
 .crisis-button {
     flex-grow: 1;
-    min-height: 40px;
-    font-size: 18px;
-    -unity-font-style: bold;
+    min-height: 37px;
+    font-size: 25px;
+    -unity-font-style: normal;
     color: rgb(29, 35, 22);
     background-color: rgb(181, 191, 136);
     border-top-width: 2px;
@@ -237,17 +246,17 @@
 }
 
 .crisis-panel--compact .crisis-title {
-    font-size: 20px;
+    font-size: 28px;
 }
 
 .crisis-panel--compact .crisis-collapse-button {
     min-width: 72px;
-    min-height: 34px;
-    font-size: 14px;
+    min-height: 33px;
+    font-size: 22px;
 }
 
 .crisis-panel--compact .crisis-text {
-    font-size: 19px;
+    font-size: 26px;
 }
 
 .crisis-panel--compact .crisis-cost-icon {
@@ -256,30 +265,30 @@
 }
 
 .crisis-panel--compact .crisis-cost-value {
-    font-size: 16px;
+    font-size: 25px;
 }
 
 .crisis-panel--compact .crisis-cost-action {
-    font-size: 15px;
+    font-size: 26px;
 }
 
 .crisis-panel--compact .crisis-button {
-    min-height: 36px;
-    font-size: 16px;
+    min-height: 34px;
+    font-size: 23px;
 }
 
 .crisis-panel--large .crisis-title {
-    font-size: 23px;
+    font-size: 31px;
 }
 
 .crisis-panel--large .crisis-collapse-button {
     min-width: 86px;
-    min-height: 40px;
-    font-size: 15px;
+    min-height: 38px;
+    font-size: 23px;
 }
 
 .crisis-panel--large .crisis-text {
-    font-size: 22px;
+    font-size: 28px;
 }
 
 .crisis-panel--large .crisis-cost-icon {
@@ -288,76 +297,90 @@
 }
 
 .crisis-panel--large .crisis-cost-value {
-    font-size: 19px;
+    font-size: 28px;
 }
 
 .crisis-panel--large .crisis-cost-action {
-    font-size: 18px;
+    font-size: 29px;
 }
 
 .crisis-panel--large .crisis-button {
-    min-height: 42px;
-    font-size: 18px;
+    min-height: 40px;
+    font-size: 25px;
 }
 
 .crisis-panel--phone-portrait {
-    width: 67%;
-    min-width: 195px;
-    max-width: 74%;
-    min-height: 248px;
+    width: 52%;
+    min-width: 250px;
+    max-width: 60%;
+    min-height: 500px;
+    max-height: 98%;
     margin-right: 6px;
     margin-top: 8px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 11px;
-    padding-bottom: 11px;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 .crisis-panel--phone-portrait .crisis-title {
-    font-size: 22px;
+    font-size: 23px;
 }
 
 .crisis-panel--phone-portrait .crisis-collapse-button {
-    min-width: 74px;
-    min-height: 36px;
-    font-size: 15px;
+    min-width: 54px;
+    min-height: 24px;
+    font-size: 12px;
 }
 
 .crisis-panel--phone-portrait .crisis-text {
-    font-size: 19px;
-    margin-bottom: 4px;
+    font-size: 18px;
+    margin-bottom: 2px;
 }
 
 .crisis-panel--phone-portrait .crisis-cost-row {
-    gap: 6px;
-    margin-bottom: 6px;
+    flex-wrap: nowrap;
+    gap: 3px;
+    margin-bottom: 4px;
+}
+
+.crisis-panel--phone-portrait .crisis-cost-item {
+    gap: 2px;
 }
 
 .crisis-panel--phone-portrait .crisis-cost-icon {
-    width: 19px;
-    height: 19px;
+    width: 14px;
+    height: 14px;
 }
 
 .crisis-panel--phone-portrait .crisis-cost-value {
-    font-size: 18px;
-    min-width: 20px;
+    font-size: 16px;
+    min-width: 16px;
 }
 
 .crisis-panel--phone-portrait .crisis-cost-action {
-    font-size: 17px;
+    font-size: 15px;
+    margin-left: 1px;
+    white-space: nowrap;
 }
 
 .crisis-panel--phone-portrait .crisis-cost-label {
-    font-size: 18px;
+    font-size: 15px;
+    margin-right: 2px;
+    white-space: nowrap;
 }
 
 .crisis-panel--phone-portrait .crisis-actions {
-    gap: 4px;
-    margin-top: 8px;
-    margin-bottom: 8px;
+    flex-direction: row;
+    gap: 2px;
+    margin-top: 3px;
+    margin-bottom: 3px;
 }
 
 .crisis-panel--phone-portrait .crisis-button {
-    min-height: 34px;
-    font-size: 17px;
+    min-width: 0;
+    min-height: 22px;
+    font-size: 11px;
+    padding-left: 3px;
+    padding-right: 3px;
 }

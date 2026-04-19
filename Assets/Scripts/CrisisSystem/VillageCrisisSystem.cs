@@ -19,6 +19,7 @@ public class VillageCrisisSystem : MonoBehaviour
         public bool isActive;
         public GameObject marker;
         public Vector3 markerBaseScale;
+        public SpriteRenderer selectionOutline;
     }
 
     [Header("References")]
@@ -85,6 +86,10 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField] private bool pulseMarkers = true;
     [SerializeField, Min(0.1f)] private float markerPulseSpeed = 3f;
     [SerializeField, Range(0f, 0.4f)] private float markerPulseAmplitude = 0.12f;
+    [SerializeField, Min(1f)] private float selectedMarkerScaleBoost = 1.15f;
+    [SerializeField] private Color selectedMarkerOutlineColor = new Color(0.2f, 0.95f, 1f, 0.95f);
+    [SerializeField, Range(1.01f, 2f)] private float selectedMarkerOutlineScale = 1.14f;
+    [SerializeField] private int selectedMarkerOutlineOrderOffset = -1;
 
     [Header("Debug")]
     [SerializeField] private bool showOverlay = true;
@@ -112,8 +117,10 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField] private bool usePhonePortraitLayout = true;
     [SerializeField, Min(320)] private int phonePortraitMaxScreenWidth = 1300;
     [SerializeField, Range(0.4f, 1f)] private float phonePortraitScaleMultiplier = 0.88f;
+    [SerializeField, Min(180f)] private float phonePortraitFixedPanelWidth = 340f;
     [SerializeField, Min(0f)] private float phonePortraitTopOffset = 118f;
     [SerializeField, Min(0f)] private float phonePortraitSafeAreaTopInset = 38f;
+    [SerializeField, Min(0f)] private float phonePortraitUpwardShift = 72f;
 
     [Header("Overlay Stacking")]
     [SerializeField] private bool stackBelowResourceHudOnNarrowScreens = false;
@@ -271,6 +278,8 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         float pulse = 1f + Mathf.Sin(Time.time * markerPulseSpeed) * markerPulseAmplitude;
+        int selectedIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
+        float selectedBoost = Mathf.Max(1f, selectedMarkerScaleBoost);
         for (int i = 0; i < _activeCrises.Count; i++)
         {
             VillageCrisisState crisis = _activeCrises[i];
@@ -279,7 +288,13 @@ public class VillageCrisisSystem : MonoBehaviour
                 continue;
             }
 
-            crisis.marker.transform.localScale = crisis.markerBaseScale * pulse;
+            float scale = pulse;
+            if (i == selectedIndex)
+            {
+                scale *= selectedBoost;
+            }
+
+            crisis.marker.transform.localScale = crisis.markerBaseScale * scale;
         }
     }
 
@@ -446,7 +461,7 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             ResolveCrisis(crisis);
             int resolveReward = Mathf.Max(0, resolveStabilityReward) + (connectedAtResponse ? Mathf.Max(0, connectedResolveStabilityBonus) : 0);
-            SetResponseStatus($"Resolved crisis! ({severityBefore} -> 0, +{resolveReward} stability)");
+            SetResponseStatus($"Resolved crisis! ({severityBefore} -> 0, +{resolveReward} Health)");
         }
         else if (!connectedAtResponse && disconnectedResolveFloor > 0 && crisis.severity <= disconnectedResolveFloor)
         {
@@ -477,6 +492,7 @@ public class VillageCrisisSystem : MonoBehaviour
             Debug.Log($"Crisis selected: {selected.type} at {selected.coordinate} (severity {selected.severity})", this);
         }
 
+        RefreshAllMarkerVisuals();
         RefreshOverlayText();
     }
 
@@ -499,6 +515,7 @@ public class VillageCrisisSystem : MonoBehaviour
             Debug.Log($"Crisis selected: {selected.type} at {selected.coordinate} (severity {selected.severity})", this);
         }
 
+        RefreshAllMarkerVisuals();
         RefreshOverlayText();
     }
 
@@ -738,6 +755,7 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        ClearSelectionOutline(crisis);
         if (crisis.marker != null)
         {
             Destroy(crisis.marker);
@@ -775,6 +793,8 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             _selectedCrisisIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
         }
+
+        RefreshAllMarkerVisuals();
     }
 
     private void CreateCrisisAt(Vector2Int villageCoordinate, VillageCrisisType type, int initialSeverity)
@@ -927,33 +947,6 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
-        SpriteRenderer spriteRenderer = crisis.marker.GetComponentInChildren<SpriteRenderer>();
-        if (spriteRenderer != null)
-        {
-            Color spriteColor = Color.green;
-            if (crisis.severity >= criticalSeverityThreshold)
-            {
-                spriteColor = new Color(0.95f, 0.12f, 0.12f);
-            }
-            else if (crisis.severity >= criticalSeverityThreshold * 0.65f)
-            {
-                spriteColor = new Color(0.98f, 0.52f, 0.06f);
-            }
-            else
-            {
-                spriteColor = new Color(0.98f, 0.86f, 0.1f);
-            }
-
-            spriteRenderer.color = spriteColor;
-            return;
-        }
-
-        Renderer[] renderers = crisis.marker.GetComponentsInChildren<Renderer>();
-        if (renderers == null || renderers.Length == 0)
-        {
-            return;
-        }
-
         Color color = Color.green;
         if (crisis.severity >= criticalSeverityThreshold)
         {
@@ -968,6 +961,22 @@ public class VillageCrisisSystem : MonoBehaviour
             color = new Color(0.98f, 0.86f, 0.1f);
         }
 
+        SpriteRenderer spriteRenderer = crisis.marker.GetComponentInChildren<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = color;
+            UpdateSelectionOutline(crisis, spriteRenderer);
+            return;
+        }
+
+        ClearSelectionOutline(crisis);
+
+        Renderer[] renderers = crisis.marker.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer rendererComponent = renderers[i];
@@ -978,6 +987,72 @@ public class VillageCrisisSystem : MonoBehaviour
 
             rendererComponent.material.color = color;
         }
+    }
+
+    private bool IsSelectedCrisis(VillageCrisisState crisis)
+    {
+        if (crisis == null || _activeCrises.Count == 0)
+        {
+            return false;
+        }
+
+        int selectedIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
+        return ReferenceEquals(_activeCrises[selectedIndex], crisis);
+    }
+
+    private void RefreshAllMarkerVisuals()
+    {
+        for (int i = 0; i < _activeCrises.Count; i++)
+        {
+            UpdateMarkerVisual(_activeCrises[i]);
+        }
+    }
+
+    private void UpdateSelectionOutline(VillageCrisisState crisis, SpriteRenderer markerRenderer)
+    {
+        if (crisis == null)
+        {
+            return;
+        }
+
+        bool shouldShowOutline = IsSelectedCrisis(crisis)
+            && markerRenderer != null
+            && markerRenderer.sprite != null;
+
+        if (!shouldShowOutline)
+        {
+            ClearSelectionOutline(crisis);
+            return;
+        }
+
+        if (crisis.selectionOutline == null)
+        {
+            GameObject outlineObject = new GameObject("SelectionOutline");
+            outlineObject.transform.SetParent(markerRenderer.transform, false);
+            outlineObject.transform.localPosition = Vector3.zero;
+            outlineObject.transform.localRotation = Quaternion.identity;
+            crisis.selectionOutline = outlineObject.AddComponent<SpriteRenderer>();
+        }
+
+        SpriteRenderer outlineRenderer = crisis.selectionOutline;
+        outlineRenderer.sprite = markerRenderer.sprite;
+        outlineRenderer.color = selectedMarkerOutlineColor;
+        outlineRenderer.sortingLayerID = markerRenderer.sortingLayerID;
+        outlineRenderer.sortingOrder = markerRenderer.sortingOrder + selectedMarkerOutlineOrderOffset;
+
+        float outlineScale = Mathf.Max(1.01f, selectedMarkerOutlineScale);
+        outlineRenderer.transform.localScale = new Vector3(outlineScale, outlineScale, 1f);
+    }
+
+    private void ClearSelectionOutline(VillageCrisisState crisis)
+    {
+        if (crisis == null || crisis.selectionOutline == null)
+        {
+            return;
+        }
+
+        Destroy(crisis.selectionOutline.gameObject);
+        crisis.selectionOutline = null;
     }
 
     private void OnDestroy()
@@ -1265,6 +1340,7 @@ public class VillageCrisisSystem : MonoBehaviour
             VillageCrisisState crisis = _activeCrises[i];
             if (crisis != null && crisis.marker != null)
             {
+                ClearSelectionOutline(crisis);
                 Destroy(crisis.marker);
                 crisis.marker = null;
             }
@@ -1692,10 +1768,25 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (!applyStackedLayout)
         {
+            if (isPhonePortraitLayout)
+            {
+                float requestedPhoneWidth = Mathf.Clamp(phonePortraitFixedPanelWidth, 300f, 360f);
+                float fixedWidth = Mathf.Clamp(
+                    requestedPhoneWidth,
+                    180f,
+                    Mathf.Max(180f, Screen.width - 12f)
+                );
+
+                _overlayPanel.style.width = fixedWidth;
+                _overlayPanel.style.minWidth = fixedWidth;
+                _overlayPanel.style.maxWidth = fixedWidth;
+            }
+
             float resolvedTopMargin = ResolveCrisisPanelTopMargin(isPhonePortraitLayout, canStackByWidth, hasResourceHudBounds ? resourceHudBounds : default);
             if (isPhonePortraitLayout)
             {
-                resolvedTopMargin += Mathf.Max(0f, phonePortraitSafeAreaTopInset);
+                resolvedTopMargin += Mathf.Max(0f, phonePortraitSafeAreaTopInset * 0.05f);
+                resolvedTopMargin = Mathf.Min(resolvedTopMargin, 8f);
             }
 
             if (resolvedTopMargin > 0.01f)
@@ -1720,10 +1811,11 @@ public class VillageCrisisSystem : MonoBehaviour
         float resolvedMaxVisualScale = Mathf.Max(minOverlayVisualScale, maxOverlayVisualScale);
         float resolvedMinVisualScale = Mathf.Max(0.5f, minOverlayVisualScale);
         float safeGlobalScaleMultiplier = Mathf.Clamp(globalOverlayScaleMultiplier, 0.7f, 1.2f);
+        float effectiveGlobalScaleMultiplier = isPhonePortraitLayout ? 1f : safeGlobalScaleMultiplier;
 
         if (isPhonePortraitLayout)
         {
-            resolvedMinVisualScale = Mathf.Min(resolvedMinVisualScale, 0.9f);
+            resolvedMinVisualScale = Mathf.Max(1f, resolvedMinVisualScale);
             resolvedMaxVisualScale = Mathf.Min(resolvedMaxVisualScale, 1.2f);
         }
 
@@ -1738,7 +1830,7 @@ public class VillageCrisisSystem : MonoBehaviour
             float noAutoScale = isPhonePortraitLayout
                 ? Mathf.Clamp(phonePortraitScaleMultiplier, resolvedMinVisualScale, resolvedMaxVisualScale)
                 : 1f;
-            noAutoScale *= safeGlobalScaleMultiplier;
+            noAutoScale *= effectiveGlobalScaleMultiplier;
             _overlayPanel.style.scale = new Scale(new Vector3(noAutoScale, noAutoScale, 1f));
             return;
         }
@@ -1751,8 +1843,8 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         float visualScale = Mathf.Clamp(rawScale, resolvedMinVisualScale, resolvedMaxVisualScale);
-        visualScale *= safeGlobalScaleMultiplier;
-        float scaledRawScaleForClass = rawScale * safeGlobalScaleMultiplier;
+        visualScale *= effectiveGlobalScaleMultiplier;
+        float scaledRawScaleForClass = rawScale * effectiveGlobalScaleMultiplier;
 
         _overlayPanel.style.transformOrigin = new TransformOrigin(
             new Length(applyStackedLayout ? 0f : 100f, LengthUnit.Percent),
@@ -1869,12 +1961,17 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private float ResolveCrisisPanelTopMargin(bool isPhonePortraitLayout, bool canStackByWidth, Rect resourceHudBounds)
     {
-        if (!canStackByWidth)
+        float topMargin = 0f;
+        if (isPhonePortraitLayout)
         {
-            return 0f;
+            topMargin = Mathf.Max(0f, phonePortraitTopOffset - Mathf.Max(0f, phonePortraitUpwardShift));
+            topMargin = Mathf.Min(topMargin, 8f);
         }
 
-        float topMargin = isPhonePortraitLayout ? Mathf.Max(0f, phonePortraitTopOffset) : 0f;
+        if (!canStackByWidth)
+        {
+            return topMargin;
+        }
 
         if (resourceHudBounds.height > 1f)
         {
@@ -2075,8 +2172,8 @@ public class VillageCrisisSystem : MonoBehaviour
         if (_spawnRuleLabel != null)
         {
             string rule = allowLongHints
-                ? $"Drain now: -{_lastComputedStabilityDrain}/turn. CRITICAL can spread ({(spreadChance * 100f):0}%/turn). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s)."
-                : $"Drain: -{_lastComputedStabilityDrain}/turn. Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s).";
+                ? $"Health loss now: -{_lastComputedStabilityDrain}/turn from crises. If Health reaches 0, you lose. CRITICAL can spread ({(spreadChance * 100f):0}%/turn). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s)."
+                : $"Health loss: -{_lastComputedStabilityDrain}/turn (lose at 0). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s).";
 
             _spawnRuleLabel.text = rule;
         }
@@ -2102,7 +2199,7 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_actionCostLabel != null)
             {
-                _actionCostLabel.text = $"{responseActionCost} action";
+                _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
             }
 
             if (_typeEffectLabel != null)
@@ -2164,7 +2261,7 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_actionCostLabel != null)
             {
-                _actionCostLabel.text = $"{responseActionCost} action";
+                _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
             }
 
             if (_selectedHintLabel != null)
@@ -2190,7 +2287,7 @@ public class VillageCrisisSystem : MonoBehaviour
             {
                 _resolveHintLabel.text =
                     selectedConnected
-                        ? $"Connected: +{extraResponsePowerWhenConnected} response power and +{connectedResolveStabilityBonus} stability on resolve. Respond now lowers severity by {responsePower}."
+                        ? $"Connected: +{extraResponsePowerWhenConnected} response power and +{connectedResolveStabilityBonus} Health on resolve. Respond now lowers severity by {responsePower}."
                         : disconnectedResolveFloor > 0
                             ? $"Disconnected: response lowers severity by {responsePower}, but cannot resolve below {disconnectedResolveFloor}. Connect village to finish crisis."
                             : $"Connect this village to the city for +{extraResponsePowerWhenConnected} response power.";
@@ -2228,7 +2325,7 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (_pressureLabel != null)
         {
-            _pressureLabel.text = $"Current drain: -{_lastComputedStabilityDrain}/turn";
+            _pressureLabel.text = $"Health loss this turn: -{_lastComputedStabilityDrain} (you lose at 0 Health)";
         }
 
         if (compactOverlay)
@@ -2319,6 +2416,22 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        if (_overlayPanel != null)
+        {
+            if (_isMiniMode && _isPhonePortraitLayout)
+            {
+                _overlayPanel.style.minHeight = 0f;
+                _overlayPanel.style.height = StyleKeyword.Null;
+                _overlayPanel.style.maxHeight = StyleKeyword.Null;
+            }
+            else
+            {
+                _overlayPanel.style.minHeight = StyleKeyword.Null;
+                _overlayPanel.style.height = StyleKeyword.Null;
+                _overlayPanel.style.maxHeight = StyleKeyword.Null;
+            }
+        }
+
         bool showDetails = !_isMiniMode;
 
         if (_detailsTop != null)
@@ -2354,7 +2467,7 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             case VillageCrisisType.Health:
                 return stage >= 2
-                    ? "Health: response costs are elevated at this severity and stability drain pressure is high."
+                    ? "Health: response costs are elevated at this severity and Health loss pressure is high."
                     : "Health: response cost rises as severity climbs.";
             case VillageCrisisType.Infrastructure:
                 int infrastructureIncreasePercent = Mathf.RoundToInt((GetInfrastructureBuildCostMultiplier() - 1f) * 100f);
@@ -2409,40 +2522,39 @@ public class VillageCrisisSystem : MonoBehaviour
             return string.Empty;
         }
 
-        string location = $"({crisis.coordinate.x},{crisis.coordinate.y})";
         return crisis.type switch
         {
             VillageCrisisType.Infrastructure => stage switch
             {
-                3 => $"CRITICAL Infrastructure at {location}: building costs are heavily increased.",
-                2 => $"Danger Infrastructure at {location}: construction costs are rising fast.",
-                _ => $"Warning Infrastructure at {location}: build costs are starting to climb."
+                3 => "CRITICAL Infrastructure: building costs are heavily increased.",
+                2 => "Danger Infrastructure: construction costs are rising fast.",
+                _ => "Warning Infrastructure: build costs are starting to climb."
             },
             VillageCrisisType.Health => stage switch
             {
-                3 => $"CRITICAL Health at {location}: response costs and stability pressure are severe.",
-                2 => $"Danger Health at {location}: response costs increased.",
-                _ => $"Warning Health at {location}: prepare additional response resources."
+                3 => "CRITICAL Health: response costs and Health loss pressure are severe.",
+                2 => "Danger Health: response costs increased.",
+                _ => "Warning Health: prepare additional response resources."
             },
             VillageCrisisType.Nature => stage switch
             {
-                3 => $"CRITICAL Nature at {location}: wood-heavy containment required.",
-                2 => $"Danger Nature at {location}: wood cost pressure is now high.",
-                _ => $"Warning Nature at {location}: response wood demand increased."
+                3 => "CRITICAL Nature: wood-heavy containment required.",
+                2 => "Danger Nature: wood cost pressure is now high.",
+                _ => "Warning Nature: response wood demand increased."
             },
             VillageCrisisType.Social => stage switch
             {
-                3 => $"CRITICAL Social at {location}: crisis can destabilize quickly.",
-                2 => $"Danger Social at {location}: resolve soon to avoid snowballing.",
-                _ => $"Warning Social at {location}: pressure is increasing."
+                3 => "CRITICAL Social: crisis can destabilize quickly.",
+                2 => "Danger Social: resolve soon to avoid snowballing.",
+                _ => "Warning Social: pressure is increasing."
             },
             VillageCrisisType.Cultural => stage switch
             {
-                3 => $"CRITICAL Cultural at {location}: prolonged neglect is now dangerous.",
-                2 => $"Danger Cultural at {location}: stability pressure is mounting.",
-                _ => $"Warning Cultural at {location}: address before it escalates."
+                3 => "CRITICAL Cultural: prolonged neglect is now dangerous.",
+                2 => "Danger Cultural: Health loss pressure is mounting.",
+                _ => "Warning Cultural: address before it escalates."
             },
-            _ => $"Crisis at {location} escalated to a new severity tier."
+            _ => "Crisis escalated to a new severity tier."
         };
     }
 

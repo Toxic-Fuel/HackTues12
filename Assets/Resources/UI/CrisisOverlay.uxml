@@ -38,7 +38,7 @@
                     <ui:Label name="crisis-stone-cost" class="crisis-cost-value" text="x0" />
                 </ui:VisualElement>
 
-                <ui:Label name="crisis-action-cost" class="crisis-cost-action" text="+1 action" />
+                <ui:Label name="crisis-action-cost" class="crisis-cost-action" text="1 turn" />
             </ui:VisualElement>
 
             <ui:VisualElement name="crisis-details-bottom" class="crisis-details">
