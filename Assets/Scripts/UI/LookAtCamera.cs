@@ -5,13 +5,30 @@ public class LookAtCamera : MonoBehaviour
 {
     private Camera mainCamera;
 
-    private void Start()
+    private void Awake()
     {
-        mainCamera = FindObjectOfType<Camera>();
+        mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            mainCamera = FindAnyObjectByType<Camera>();
+        }
     }
 
-    void Update()
+    private void LateUpdate()
     {
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                mainCamera = FindAnyObjectByType<Camera>();
+                if (mainCamera == null)
+                {
+                    return;
+                }
+            }
+        }
+
         transform.LookAt(mainCamera.transform);
     }
 }
