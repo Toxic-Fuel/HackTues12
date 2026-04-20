@@ -6,8 +6,17 @@ public class RandomSeed : MonoBehaviour
     [SerializeField] private GridMap gridMap;
     [SerializeField] private bool regenerateMapOnAwake = false;
 
+    private static bool _hasForcedSeedForNextLoad;
+    private static int _forcedSeedForNextLoad;
+
     public int minValue;
     public int maxValue;
+
+    public static void ForceSeedForNextLoad(int seed)
+    {
+        _forcedSeedForNextLoad = seed;
+        _hasForcedSeedForNextLoad = true;
+    }
 
     private void Awake()
     {
@@ -27,7 +36,15 @@ public class RandomSeed : MonoBehaviour
             return;
         }
 
-        gridMap.seed = Random.Range(minValue, maxValue);
+        if (_hasForcedSeedForNextLoad)
+        {
+            gridMap.seed = _forcedSeedForNextLoad;
+            _hasForcedSeedForNextLoad = false;
+        }
+        else
+        {
+            gridMap.seed = Random.Range(minValue, maxValue);
+        }
 
         if (regenerateMapOnAwake)
         {

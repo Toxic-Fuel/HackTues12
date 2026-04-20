@@ -236,6 +236,12 @@ public class VillageCrisisSystem : MonoBehaviour
             turns.TurnStarted += OnTurnStarted;
         }
 
+        if (tileBuilding != null)
+        {
+            tileBuilding.RoadBuiltAt -= OnRoadBuiltAt;
+            tileBuilding.RoadBuiltAt += OnRoadBuiltAt;
+        }
+
         RegisterAction(previousCrisisAction, OnPreviousCrisisPerformed);
         RegisterAction(nextCrisisAction, OnNextCrisisPerformed);
         RegisterAction(respondCrisisAction, OnRespondPerformed);
@@ -260,6 +266,11 @@ public class VillageCrisisSystem : MonoBehaviour
         if (turns != null)
         {
             turns.TurnStarted -= OnTurnStarted;
+        }
+
+        if (tileBuilding != null)
+        {
+            tileBuilding.RoadBuiltAt -= OnRoadBuiltAt;
         }
 
         UnregisterAction(previousCrisisAction, OnPreviousCrisisPerformed);
@@ -610,6 +621,17 @@ public class VillageCrisisSystem : MonoBehaviour
         ApplyStabilityPressure();
 
         NotifyStateChanged();
+    }
+
+    private void OnRoadBuiltAt(Vector2Int _)
+    {
+        if (!_initialized)
+        {
+            return;
+        }
+
+        RebuildConnectivityCache();
+        RefreshOverlayText();
     }
 
     private void EscalateCrises()
@@ -2086,6 +2108,11 @@ public class VillageCrisisSystem : MonoBehaviour
         if (!_overlayUiInitialized || _overlayRoot == null)
         {
             return;
+        }
+
+        if (_initialized)
+        {
+            RebuildConnectivityCache();
         }
 
         SetOverlayVisible(showOverlay);

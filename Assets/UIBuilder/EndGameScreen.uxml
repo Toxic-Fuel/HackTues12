@@ -20,6 +20,7 @@
                     <ui:Label name="HighscoreText" text="Highscore: 0" class="stat-text"/>
                     <ui:Label name="SpeedRatingText" text="Speed rating: 0%" class="stat-text"/>
                     <ui:Label name="DifficultyText" text="Difficulty rating: 60%" class="stat-text"/>
+                    <ui:Label name="SeedText" text="Seed: N/A" class="stat-text"/>
                 </ui:VisualElement>
 
                 <ui:VisualElement name="ButtonsColumn" class="buttons-column">
