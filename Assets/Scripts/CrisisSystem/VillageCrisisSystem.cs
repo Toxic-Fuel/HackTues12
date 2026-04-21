@@ -650,7 +650,7 @@ public class VillageCrisisSystem : MonoBehaviour
             int gain = NextRandomIntInclusive(severityGainPerTurnMin, severityGainPerTurnMax);
             if (IsVillageConnectedToCity(crisis.coordinate))
             {
-                gain = Mathf.Max(1, Mathf.RoundToInt(gain * 0.7f));
+                gain = Mathf.Max(1, Mathf.RoundToInt(gain * 0.85f));
             }
 
             crisis.severity = Mathf.Clamp(crisis.severity + gain, 0, 100);
@@ -754,9 +754,8 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private void ApplyStabilityPressure()
     {
-        int criticalCount = CountCriticalCrises();
-        int drain = passiveStabilityDrain + _activeCrises.Count + criticalCount * criticalCrisisStabilityDrain;
-        _lastComputedStabilityDrain = Mathf.Max(0, drain);
+        int drain = ComputeCurrentStabilityDrain();
+        _lastComputedStabilityDrain = drain;
         _stability = Mathf.Clamp(_stability - Mathf.Max(0, drain), 0, 100);
 
         if (_stability <= 0)
@@ -768,6 +767,39 @@ public class VillageCrisisSystem : MonoBehaviour
 
             turns.SetLoseState();
         }
+    }
+
+    private int ComputeCurrentStabilityDrain()
+    {
+        int criticalCount = 0;
+        int severityPressureBonus = 0;
+
+        for (int i = 0; i < _activeCrises.Count; i++)
+        {
+            VillageCrisisState crisis = _activeCrises[i];
+            if (crisis == null || !crisis.isActive)
+            {
+                continue;
+            }
+
+            int severityStage = GetSeverityStage(crisis.severity);
+            if (severityStage >= 2)
+            {
+                severityPressureBonus += 1;
+            }
+
+            if (severityStage >= 3)
+            {
+                severityPressureBonus += 1;
+                criticalCount++;
+            }
+        }
+
+        int drain = passiveStabilityDrain
+            + _activeCrises.Count
+            + criticalCount * criticalCrisisStabilityDrain
+            + severityPressureBonus;
+        return Mathf.Max(0, drain);
     }
 
     private void ResolveCrisis(VillageCrisisState crisis)
@@ -2121,6 +2153,9 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        // Keep pressure text in sync with current crisis state, not only after turn ticks.
+        _lastComputedStabilityDrain = ComputeCurrentStabilityDrain();
+
         int criticalCount = CountCriticalCrises();
         int disconnectedVillages = CountDisconnectedVillagesFromCity();
         bool gateOpen = CanDeclareVictory();
@@ -2168,7 +2203,7 @@ public class VillageCrisisSystem : MonoBehaviour
         if (_summaryLabel != null)
         {
             string severityText = selectedSeverity >= 0 ? $"{selectedSeverity}/100" : "-";
-            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count} | Critical {criticalCount} | Severity {severityText}";
+            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count}/{Mathf.Max(1, maxActiveCrises)} | Critical {criticalCount} | Severity {severityText}";
         }
 
         if (_gateLabel != null)
@@ -2604,15 +2639,15 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private void ApplyDemoFriendlyBalancePreset()
     {
-        maxActiveCrises = Mathf.Clamp(maxActiveCrises, 1, 2);
-        baseSpawnChance = 0.14f;
-        guaranteedSpawnIntervalTurns = Mathf.Max(6, guaranteedSpawnIntervalTurns);
-        severityGainPerTurnMin = 2;
-        severityGainPerTurnMax = 6;
-        spreadChance = 0.025f;
-        criticalSeverityThreshold = Mathf.Max(90, criticalSeverityThreshold);
-        postResolveSpawnGraceTurns = Mathf.Max(2, postResolveSpawnGraceTurns);
-        postResolveSpreadGraceTurns = Mathf.Max(1, postResolveSpreadGraceTurns);
+        maxActiveCrises = Mathf.Clamp(maxActiveCrises, 3, 4);
+        baseSpawnChance = Mathf.Max(baseSpawnChance, 0.22f);
+        guaranteedSpawnIntervalTurns = Mathf.Clamp(guaranteedSpawnIntervalTurns, 3, 5);
+        severityGainPerTurnMin = Mathf.Max(3, severityGainPerTurnMin);
+        severityGainPerTurnMax = Mathf.Max(7, Mathf.Max(severityGainPerTurnMax, severityGainPerTurnMin + 2));
+        spreadChance = Mathf.Max(spreadChance, 0.05f);
+        criticalSeverityThreshold = Mathf.Clamp(criticalSeverityThreshold, 85, 92);
+        postResolveSpawnGraceTurns = Mathf.Clamp(postResolveSpawnGraceTurns, 0, 1);
+        postResolveSpreadGraceTurns = Mathf.Clamp(postResolveSpreadGraceTurns, 0, 1);
         warningSeverityThreshold = Mathf.Clamp(warningSeverityThreshold, 45, 65);
         dangerSeverityThreshold = Mathf.Clamp(dangerSeverityThreshold, 70, 85);
         deterministicPerMapSeed = true;
@@ -2624,9 +2659,9 @@ public class VillageCrisisSystem : MonoBehaviour
         disconnectedResolveFloor = Mathf.Clamp(disconnectedResolveFloor, 16, 30);
         connectedResolveStabilityBonus = Mathf.Max(4, connectedResolveStabilityBonus);
 
-        passiveStabilityDrain = Mathf.Clamp(passiveStabilityDrain, 0, 1);
-        criticalCrisisStabilityDrain = Mathf.Clamp(criticalCrisisStabilityDrain, 1, 3);
-        resolveStabilityReward = Mathf.Max(10, resolveStabilityReward);
+        passiveStabilityDrain = Mathf.Max(2, passiveStabilityDrain);
+        criticalCrisisStabilityDrain = Mathf.Max(5, criticalCrisisStabilityDrain);
+        resolveStabilityReward = Mathf.Clamp(resolveStabilityReward, 6, 9);
         stabilityTurnPenaltyOnCritical = 0;
     }
 }

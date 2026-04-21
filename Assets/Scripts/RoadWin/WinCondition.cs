@@ -25,6 +25,28 @@ public class WinCondition : MonoBehaviour
     private bool lastCrisisGateOpen = true;
     private bool hasCachedCrisisGateState;
 
+    private void OnEnable()
+    {
+        if (turns == null)
+        {
+            turns = FindAnyObjectByType<Turns>();
+        }
+
+        if (turns != null)
+        {
+            turns.TurnEnded -= OnTurnEnded;
+            turns.TurnEnded += OnTurnEnded;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (turns != null)
+        {
+            turns.TurnEnded -= OnTurnEnded;
+        }
+    }
+
     private void Awake()
     {
         if (gridMap == null)
@@ -152,6 +174,11 @@ public class WinCondition : MonoBehaviour
 
     public void EvaluateWinCondition()
     {
+        if (gridMap == null || gridMap.tileMap == null)
+        {
+            return;
+        }
+
         if (!TryFindCity(out Vector2Int cityPos))
         {
             Debug.LogError("WinCondition: No city tile found.", this);
@@ -192,6 +219,11 @@ public class WinCondition : MonoBehaviour
         {
             hasWon = false;
         }
+    }
+
+    private void OnTurnEnded(Turns _)
+    {
+        EvaluateWinCondition();
     }
 
     private bool TryFindCity(out Vector2Int cityPos)
