@@ -51,6 +51,10 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private Color normalButtonColor = Color.white;
     [SerializeField] private Color selectedButtonColor = new Color(0.82f, 0.82f, 0.62f, 1f);
 
+    [Header("Cost Text Colors")]
+    [SerializeField] private Color affordableCostTextColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+    [SerializeField] private Color unaffordableCostTextColor = new Color(0.92f, 0.25f, 0.25f, 1f);
+
     [Header("Build Costs")]
     [SerializeField] private IntArrayRow[] buildingCostRows;
 
@@ -572,14 +576,33 @@ public class TileBuildContextPanel : MonoBehaviour
         int woodCost = (cost != null && woodIndex >= 0 && woodIndex < cost.Length) ? cost[woodIndex] : 0;
         int stoneCost = (cost != null && stoneIndex >= 0 && stoneIndex < cost.Length) ? cost[stoneIndex] : 0;
 
+        int currentWood = (turns != null
+            && turns.CurrentResources != null
+            && woodIndex >= 0
+            && woodIndex < turns.CurrentResources.Length)
+            ? turns.CurrentResources[woodIndex]
+            : int.MaxValue;
+
+        int currentStone = (turns != null
+            && turns.CurrentResources != null
+            && stoneIndex >= 0
+            && stoneIndex < turns.CurrentResources.Length)
+            ? turns.CurrentResources[stoneIndex]
+            : int.MaxValue;
+
+        bool lacksWood = currentWood < woodCost;
+        bool lacksStone = currentStone < stoneCost;
+
         if (woodCostText != null)
         {
             woodCostText.text = woodCost.ToString();
+            woodCostText.color = lacksWood ? unaffordableCostTextColor : affordableCostTextColor;
         }
 
         if (stoneCostText != null)
         {
             stoneCostText.text = stoneCost.ToString();
+            stoneCostText.color = lacksStone ? unaffordableCostTextColor : affordableCostTextColor;
         }
     }
 

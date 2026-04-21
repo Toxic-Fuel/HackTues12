@@ -2279,6 +2279,7 @@ public class VillageCrisisSystem : MonoBehaviour
             if (_resolveHintLabel != null)
             {
                 _resolveHintLabel.text = "Connect villages to the city for bonus response power.";
+                _resolveHintLabel.RemoveFromClassList("crisis-text--critical");
             }
         }
         else
@@ -2288,6 +2289,22 @@ public class VillageCrisisSystem : MonoBehaviour
             int[] selectedCost = BuildResponseResourceCost(selected);
             bool selectedCritical = selected.severity >= criticalSeverityThreshold;
             bool selectedConnected = IsVillageConnectedToCity(selected.coordinate);
+            int woodIndex = (int)ResourceType.Wood;
+            int stoneIndex = (int)ResourceType.Stone;
+            int requiredWood = (selectedCost != null && woodIndex >= 0 && woodIndex < selectedCost.Length) ? selectedCost[woodIndex] : 0;
+            int requiredStone = (selectedCost != null && stoneIndex >= 0 && stoneIndex < selectedCost.Length) ? selectedCost[stoneIndex] : 0;
+            int currentWood = (turns != null && turns.CurrentResources != null && woodIndex >= 0 && woodIndex < turns.CurrentResources.Length)
+                ? turns.CurrentResources[woodIndex]
+                : 0;
+            int currentStone = (turns != null && turns.CurrentResources != null && stoneIndex >= 0 && stoneIndex < turns.CurrentResources.Length)
+                ? turns.CurrentResources[stoneIndex]
+                : 0;
+            bool lacksWood = turns != null && currentWood < requiredWood;
+            bool lacksStone = turns != null && currentStone < requiredStone;
+            bool canAffordSelectedCost = turns != null && turns.CanAffordResources(selectedCost);
+            bool hasEnoughActionsForResponse = turns != null
+                && turns.State == Turns.TurnState.PlayerTurn
+                && (responseActionCost <= 0 || (turns.CanTakeAction && turns.ActionsRemaining >= responseActionCost));
             int responsePower = Mathf.Max(1, Mathf.RoundToInt(baseResponsePower * (selectedConnected ? 1f : disconnectedResponsePowerMultiplier)))
                 + (selectedConnected ? extraResponsePowerWhenConnected : 0);
             int severityStage = GetSeverityStage(selected.severity);
@@ -2313,17 +2330,41 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_woodCostLabel != null)
             {
-                _woodCostLabel.text = $"x{selectedCost[(int)ResourceType.Wood]}";
+                _woodCostLabel.text = $"x{requiredWood}";
+                if (lacksWood)
+                {
+                    _woodCostLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _woodCostLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
 
             if (_stoneCostLabel != null)
             {
-                _stoneCostLabel.text = $"x{selectedCost[(int)ResourceType.Stone]}";
+                _stoneCostLabel.text = $"x{requiredStone}";
+                if (lacksStone)
+                {
+                    _stoneCostLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _stoneCostLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
 
             if (_actionCostLabel != null)
             {
                 _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
+                if (!hasEnoughActionsForResponse)
+                {
+                    _actionCostLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _actionCostLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
 
             if (_selectedHintLabel != null)
@@ -2347,12 +2388,28 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_resolveHintLabel != null)
             {
-                _resolveHintLabel.text =
-                    selectedConnected
-                        ? $"Connected: +{extraResponsePowerWhenConnected} response power and +{connectedResolveStabilityBonus} Health on resolve. Respond now lowers severity by {responsePower}."
-                        : disconnectedResolveFloor > 0
-                            ? $"Disconnected: response lowers severity by {responsePower}, but cannot resolve below {disconnectedResolveFloor}. Connect village to finish crisis."
-                            : $"Connect this village to the city for +{extraResponsePowerWhenConnected} response power.";
+                if (!canAffordSelectedCost)
+                {
+                    _resolveHintLabel.text = "Not enough resources to respond.";
+                    _resolveHintLabel.AddToClassList("crisis-text--critical");
+                }
+                else if (!hasEnoughActionsForResponse)
+                {
+                    _resolveHintLabel.text = responseActionCost > 0
+                        ? $"Not enough actions to respond. Need {responseActionCost}."
+                        : "Cannot respond right now.";
+                    _resolveHintLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _resolveHintLabel.text =
+                        selectedConnected
+                            ? $"Connected: +{extraResponsePowerWhenConnected} response power and +{connectedResolveStabilityBonus} Health on resolve. Respond now lowers severity by {responsePower}."
+                            : disconnectedResolveFloor > 0
+                                ? $"Disconnected: response lowers severity by {responsePower}, but cannot resolve below {disconnectedResolveFloor}. Connect village to finish crisis."
+                                : $"Connect this village to the city for +{extraResponsePowerWhenConnected} response power.";
+                    _resolveHintLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
         }
 
