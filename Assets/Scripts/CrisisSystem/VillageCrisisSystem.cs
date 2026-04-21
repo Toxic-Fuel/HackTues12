@@ -650,7 +650,7 @@ public class VillageCrisisSystem : MonoBehaviour
             int gain = NextRandomIntInclusive(severityGainPerTurnMin, severityGainPerTurnMax);
             if (IsVillageConnectedToCity(crisis.coordinate))
             {
-                gain = Mathf.Max(1, Mathf.RoundToInt(gain * 0.85f));
+                gain = Mathf.Max(1, Mathf.RoundToInt(gain * 0.70f));
             }
 
             crisis.severity = Mathf.Clamp(crisis.severity + gain, 0, 100);
@@ -2642,8 +2642,8 @@ public class VillageCrisisSystem : MonoBehaviour
         maxActiveCrises = Mathf.Clamp(maxActiveCrises, 3, 4);
         baseSpawnChance = Mathf.Clamp(baseSpawnChance, 0.10f, 0.16f);
         guaranteedSpawnIntervalTurns = Mathf.Clamp(guaranteedSpawnIntervalTurns, 5, 7);
-        severityGainPerTurnMin = Mathf.Max(3, severityGainPerTurnMin);
-        severityGainPerTurnMax = Mathf.Max(7, Mathf.Max(severityGainPerTurnMax, severityGainPerTurnMin + 2));
+        severityGainPerTurnMin = Mathf.Clamp(severityGainPerTurnMin, 2, 3);
+        severityGainPerTurnMax = Mathf.Clamp(Mathf.Max(severityGainPerTurnMax, severityGainPerTurnMin + 1), 4, 6);
         spreadChance = Mathf.Clamp(spreadChance, 0.02f, 0.035f);
         criticalSeverityThreshold = Mathf.Clamp(criticalSeverityThreshold, 85, 92);
         postResolveSpawnGraceTurns = Mathf.Clamp(postResolveSpawnGraceTurns, 2, 3);
