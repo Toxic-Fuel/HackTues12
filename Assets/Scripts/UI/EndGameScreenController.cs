@@ -45,6 +45,7 @@ namespace UI
         private VisualElement _panel;
         private Button _viewMapButton;
         private Button _playAgainButton;
+        private Button _playAgainNewSeedButton;
         private Button _quitButton;
         private Button _closeSummaryButton;
 
@@ -266,6 +267,7 @@ namespace UI
             _panel = root.Q<VisualElement>("EndGamePanel");
             _viewMapButton = root.Q<Button>("ViewMapButton");
             _playAgainButton = root.Q<Button>("PlayAgainButton");
+            _playAgainNewSeedButton = root.Q<Button>("PlayAgainNewSeedButton");
             _quitButton = root.Q<Button>("QuitButton");
             _closeSummaryButton = root.Q<Button>("CloseSummaryButton");
         }
@@ -350,6 +352,11 @@ namespace UI
                 _playAgainButton.clicked += OnPlayAgainClicked;
             }
 
+            if (_playAgainNewSeedButton != null)
+            {
+                _playAgainNewSeedButton.clicked += OnPlayAgainNewSeedClicked;
+            }
+
             if (_quitButton != null)
             {
                 _quitButton.clicked += OnQuitClicked;
@@ -371,6 +378,11 @@ namespace UI
             if (_playAgainButton != null)
             {
                 _playAgainButton.clicked -= OnPlayAgainClicked;
+            }
+
+            if (_playAgainNewSeedButton != null)
+            {
+                _playAgainNewSeedButton.clicked -= OnPlayAgainNewSeedClicked;
             }
 
             if (_quitButton != null)
@@ -474,6 +486,16 @@ namespace UI
             }
 
             InGameGenerationMenu.QueueCurrentSettingsForNextGridMap();
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            SceneManager.LoadScene(activeScene.name);
+        }
+
+        private void OnPlayAgainNewSeedClicked()
+        {
+            int newSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            RandomSeed.ForceSeedForNextLoad(newSeed);
+            InGameGenerationMenu.QueueCurrentSettingsForNextGridMapWithSeed(newSeed);
 
             Scene activeScene = SceneManager.GetActiveScene();
             SceneManager.LoadScene(activeScene.name);

@@ -26,6 +26,7 @@
                 <ui:VisualElement name="ButtonsColumn" class="buttons-column">
                     <ui:Button name="ViewMapButton" text="View Map" class="endgame-button"/>
                     <ui:Button name="PlayAgainButton" text="Play again" class="endgame-button"/>
+                    <ui:Button name="PlayAgainNewSeedButton" text="Play again (new seed)" class="endgame-button"/>
                     <ui:Button name="QuitButton" text="Quit" class="endgame-button"/>
                 </ui:VisualElement>
             </ui:VisualElement>

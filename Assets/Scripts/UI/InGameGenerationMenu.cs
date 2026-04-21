@@ -1145,6 +1145,19 @@ public class InGameGenerationMenu : MonoBehaviour
         instance.pendingApplyWithoutGridMap = true;
     }
 
+    public static void QueueCurrentSettingsForNextGridMapWithSeed(int seed)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        instance.CacheCurrentSettingsForPendingApply(instance.regenerateWhenApplyingPendingChanges);
+        pendingGridSettings.seedText = seed.ToString();
+        hasPendingGridSettings = true;
+        instance.pendingApplyWithoutGridMap = true;
+    }
+
     private void CacheCurrentSettingsForPendingApply(bool regenerateOnApply)
     {
         pendingGridSettings = new PendingGridSettings

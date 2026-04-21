@@ -736,7 +736,7 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         float chance = (forceSpawn || guaranteedSpawnFromTimer) ? 1f : baseSpawnChance;
-        chance = Mathf.Clamp01(chance + _activeCrises.Count * 0.05f);
+        chance = Mathf.Clamp01(chance + _activeCrises.Count * 0.02f);
 
         if (!forceSpawn && !guaranteedSpawnFromTimer && NextRandomValue01() > chance)
         {
@@ -2640,14 +2640,14 @@ public class VillageCrisisSystem : MonoBehaviour
     private void ApplyDemoFriendlyBalancePreset()
     {
         maxActiveCrises = Mathf.Clamp(maxActiveCrises, 3, 4);
-        baseSpawnChance = Mathf.Max(baseSpawnChance, 0.22f);
-        guaranteedSpawnIntervalTurns = Mathf.Clamp(guaranteedSpawnIntervalTurns, 3, 5);
+        baseSpawnChance = Mathf.Clamp(baseSpawnChance, 0.10f, 0.16f);
+        guaranteedSpawnIntervalTurns = Mathf.Clamp(guaranteedSpawnIntervalTurns, 5, 7);
         severityGainPerTurnMin = Mathf.Max(3, severityGainPerTurnMin);
         severityGainPerTurnMax = Mathf.Max(7, Mathf.Max(severityGainPerTurnMax, severityGainPerTurnMin + 2));
-        spreadChance = Mathf.Max(spreadChance, 0.05f);
+        spreadChance = Mathf.Clamp(spreadChance, 0.02f, 0.035f);
         criticalSeverityThreshold = Mathf.Clamp(criticalSeverityThreshold, 85, 92);
-        postResolveSpawnGraceTurns = Mathf.Clamp(postResolveSpawnGraceTurns, 0, 1);
-        postResolveSpreadGraceTurns = Mathf.Clamp(postResolveSpreadGraceTurns, 0, 1);
+        postResolveSpawnGraceTurns = Mathf.Clamp(postResolveSpawnGraceTurns, 2, 3);
+        postResolveSpreadGraceTurns = Mathf.Clamp(postResolveSpreadGraceTurns, 1, 2);
         warningSeverityThreshold = Mathf.Clamp(warningSeverityThreshold, 45, 65);
         dangerSeverityThreshold = Mathf.Clamp(dangerSeverityThreshold, 70, 85);
         deterministicPerMapSeed = true;
