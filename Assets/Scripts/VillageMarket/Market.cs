@@ -23,20 +23,31 @@ public class Market : MonoBehaviour
     [SerializeField] private StyleSheet marketStyleSheet;
     [SerializeField] private int sortingOrder = 400;
 
+    private const string SlotWoodClass = "material-slot-button--wood";
+    private const string SlotStoneClass = "material-slot-button--stone";
+
     private VisualElement marketRoot;
     private VisualElement marketPanel;
     private Button leftSlotButton;
     private Button rightSlotButton;
+    private VisualElement leftSlotMenu;
+    private VisualElement rightSlotMenu;
+    private Button leftOptionWoodButton;
+    private Button leftOptionStoneButton;
+    private Button rightOptionWoodButton;
+    private Button rightOptionStoneButton;
     private SliderInt amountSlider;
     private Label amountLabel;
     private Label tradeHelpLabel;
     private Button confirmTradeButton;
 
-    private SlotMaterial leftSlotMaterial = SlotMaterial.None;
-    private SlotMaterial rightSlotMaterial = SlotMaterial.None;
+    private SlotMaterial leftSlotMaterial;
+    private SlotMaterial rightSlotMaterial;
 
     private bool uiInitialized;
-
+    private bool wasMarketVisible;
+    private const int GivePerReceiveRatio = 2;
+    
     private void Awake()
     {
         if (selectTile == null)
@@ -73,14 +84,23 @@ public class Market : MonoBehaviour
         if (InGameGenerationMenu.IsAnyMenuOpen)
         {
             SetMarketVisible(false);
+            wasMarketVisible = false;
             return;
         }
 
         bool showMarket = IsVillageCurrentlySelected();
         SetMarketVisible(showMarket);
 
+        if (showMarket && !wasMarketVisible)
+        {
+            ResetSlotsToEmpty();
+        }
+
+        wasMarketVisible = showMarket;
+
         if (!showMarket)
         {
+            CloseSlotMenus();
             return;
         }
 
@@ -146,6 +166,12 @@ public class Market : MonoBehaviour
         marketPanel = root.Q<VisualElement>("market-panel");
         leftSlotButton = root.Q<Button>("left-slot-button");
         rightSlotButton = root.Q<Button>("right-slot-button");
+        leftSlotMenu = root.Q<VisualElement>("left-slot-menu");
+        rightSlotMenu = root.Q<VisualElement>("right-slot-menu");
+        leftOptionWoodButton = root.Q<Button>("left-option-wood");
+        leftOptionStoneButton = root.Q<Button>("left-option-stone");
+        rightOptionWoodButton = root.Q<Button>("right-option-wood");
+        rightOptionStoneButton = root.Q<Button>("right-option-stone");
         amountSlider = root.Q<SliderInt>("amount-slider");
         amountLabel = root.Q<Label>("amount-label");
         tradeHelpLabel = root.Q<Label>("trade-help-label");
@@ -153,17 +179,53 @@ public class Market : MonoBehaviour
 
         if (leftSlotButton != null)
         {
-            leftSlotButton.clicked += OnLeftSlotClicked;
+            leftSlotButton.clicked += ToggleLeftSlotMenu;
         }
 
         if (rightSlotButton != null)
         {
-            rightSlotButton.clicked += OnRightSlotClicked;
+            rightSlotButton.clicked += ToggleRightSlotMenu;
+        }
+
+        if (leftOptionWoodButton != null)
+        {
+            leftOptionWoodButton.clicked += () =>
+            {
+                SetSlotsFromLeft(SlotMaterial.Wood);
+                CloseSlotMenus();
+            };
+        }
+
+        if (leftOptionStoneButton != null)
+        {
+            leftOptionStoneButton.clicked += () =>
+            {
+                SetSlotsFromLeft(SlotMaterial.Stone);
+                CloseSlotMenus();
+            };
+        }
+
+        if (rightOptionWoodButton != null)
+        {
+            rightOptionWoodButton.clicked += () =>
+            {
+                SetSlotsFromRight(SlotMaterial.Wood);
+                CloseSlotMenus();
+            };
+        }
+
+        if (rightOptionStoneButton != null)
+        {
+            rightOptionStoneButton.clicked += () =>
+            {
+                SetSlotsFromRight(SlotMaterial.Stone);
+                CloseSlotMenus();
+            };
         }
 
         if (amountSlider != null)
         {
-            amountSlider.RegisterValueChangedCallback(_ => UpdateAmountLabelAndConfirmState());
+            amountSlider.RegisterValueChangedCallback(OnAmountSliderChanged);
         }
 
         if (confirmTradeButton != null)
@@ -171,9 +233,43 @@ public class Market : MonoBehaviour
             confirmTradeButton.clicked += ExecuteTrade;
         }
 
+        CloseSlotMenus();
         UpdateSlotTexts();
         RefreshTradeState();
         uiInitialized = true;
+    }
+
+    private void ToggleLeftSlotMenu()
+    {
+        bool open = leftSlotMenu != null && leftSlotMenu.style.display != DisplayStyle.Flex;
+        CloseSlotMenus();
+        if (open && leftSlotMenu != null)
+        {
+            leftSlotMenu.style.display = DisplayStyle.Flex;
+        }
+    }
+
+    private void ToggleRightSlotMenu()
+    {
+        bool open = rightSlotMenu != null && rightSlotMenu.style.display != DisplayStyle.Flex;
+        CloseSlotMenus();
+        if (open && rightSlotMenu != null)
+        {
+            rightSlotMenu.style.display = DisplayStyle.Flex;
+        }
+    }
+
+    private void CloseSlotMenus()
+    {
+        if (leftSlotMenu != null)
+        {
+            leftSlotMenu.style.display = DisplayStyle.None;
+        }
+
+        if (rightSlotMenu != null)
+        {
+            rightSlotMenu.style.display = DisplayStyle.None;
+        }
     }
 
     private void ResolvePanelSettings()
@@ -224,43 +320,6 @@ public class Market : MonoBehaviour
         marketRoot.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
-    private void OnLeftSlotClicked()
-    {
-        SlotMaterial next = NextMaterial(leftSlotMaterial);
-        if (next == SlotMaterial.None)
-        {
-            next = SlotMaterial.Wood;
-        }
-
-        SetSlotsFromLeft(next);
-    }
-
-    private void OnRightSlotClicked()
-    {
-        SlotMaterial next = NextMaterial(rightSlotMaterial);
-        if (next == SlotMaterial.None)
-        {
-            next = SlotMaterial.Wood;
-        }
-
-        SetSlotsFromRight(next);
-    }
-
-    private static SlotMaterial NextMaterial(SlotMaterial material)
-    {
-        switch (material)
-        {
-            case SlotMaterial.None:
-                return SlotMaterial.Wood;
-            case SlotMaterial.Wood:
-                return SlotMaterial.Stone;
-            case SlotMaterial.Stone:
-                return SlotMaterial.Wood;
-            default:
-                return SlotMaterial.Wood;
-        }
-    }
-
     private void SetSlotsFromLeft(SlotMaterial leftMaterial)
     {
         leftSlotMaterial = leftMaterial;
@@ -292,54 +351,56 @@ public class Market : MonoBehaviour
 
     private void UpdateSlotTexts()
     {
-        if (leftSlotButton != null)
-        {
-            leftSlotButton.text = MaterialToText(leftSlotMaterial);
-        }
-
-        if (rightSlotButton != null)
-        {
-            rightSlotButton.text = MaterialToText(rightSlotMaterial);
-        }
+        ApplySlotMaterialClass(leftSlotButton, leftSlotMaterial);
+        ApplySlotMaterialClass(rightSlotButton, rightSlotMaterial);
 
         if (tradeHelpLabel != null)
         {
-            if (leftSlotMaterial == SlotMaterial.None || rightSlotMaterial == SlotMaterial.None)
-            {
-                tradeHelpLabel.text = "Pick a material in either slot.";
-            }
-            else
-            {
-                tradeHelpLabel.text = "Left slot gives, right slot receives.";
-            }
+            tradeHelpLabel.text = (leftSlotMaterial == SlotMaterial.None || rightSlotMaterial == SlotMaterial.None)
+                ? "Pick a material in either slot."
+                : "Left slot gives, right slot receives.";
         }
     }
 
-    private static string MaterialToText(SlotMaterial material)
+    private static void ApplySlotMaterialClass(Button button, SlotMaterial material)
     {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.RemoveFromClassList(SlotWoodClass);
+        button.RemoveFromClassList(SlotStoneClass);
+
         switch (material)
         {
             case SlotMaterial.Wood:
-                return "Wood";
+                button.AddToClassList(SlotWoodClass);
+                break;
             case SlotMaterial.Stone:
-                return "Stone";
-            default:
-                return "Empty";
+                button.AddToClassList(SlotStoneClass);
+                break;
         }
     }
 
     private void RefreshTradeState()
     {
         int available = GetAvailableGivingResourceAmount();
+        int maxTradableGive = available - (available % GivePerReceiveRatio);
 
         if (amountSlider != null)
         {
             amountSlider.lowValue = 0;
-            amountSlider.highValue = Mathf.Max(0, available);
+            amountSlider.highValue = Mathf.Max(0, maxTradableGive);
 
-            int clampedValue = Mathf.Clamp(amountSlider.value, 0, Mathf.Max(0, available));
+            int clampedValue = Mathf.Clamp(amountSlider.value, 0, Mathf.Max(0, maxTradableGive));
+            if (clampedValue % GivePerReceiveRatio != 0)
+            {
+                clampedValue -= clampedValue % GivePerReceiveRatio;
+            }
+
             amountSlider.SetValueWithoutNotify(clampedValue);
-            amountSlider.SetEnabled(available > 0 && leftSlotMaterial != SlotMaterial.None);
+            amountSlider.SetEnabled(maxTradableGive >= GivePerReceiveRatio && leftSlotMaterial != SlotMaterial.None);
         }
 
         UpdateAmountLabelAndConfirmState();
@@ -363,20 +424,22 @@ public class Market : MonoBehaviour
 
     private void UpdateAmountLabelAndConfirmState()
     {
-        int tradeAmount = amountSlider != null ? Mathf.Max(0, amountSlider.value) : 0;
+        int giveAmount = amountSlider != null ? Mathf.Max(0, amountSlider.value) : 0;
+        int receiveAmount = giveAmount / GivePerReceiveRatio;
         int available = GetAvailableGivingResourceAmount();
 
         if (amountLabel != null)
         {
-            amountLabel.text = $"Trade Amount: {tradeAmount} / {available}";
+            amountLabel.text = $"Trade Amount: Give {giveAmount} -> Receive {receiveAmount}";
         }
 
         if (confirmTradeButton != null)
         {
             bool canTrade = leftSlotMaterial != SlotMaterial.None
                 && rightSlotMaterial != SlotMaterial.None
-                && tradeAmount > 0
-                && available >= tradeAmount;
+                && giveAmount >= GivePerReceiveRatio
+                && giveAmount % GivePerReceiveRatio == 0
+                && available >= giveAmount;
 
             confirmTradeButton.SetEnabled(canTrade);
         }
@@ -391,9 +454,16 @@ public class Market : MonoBehaviour
 
         int giveIndex = MaterialToResourceIndex(leftSlotMaterial);
         int receiveIndex = MaterialToResourceIndex(rightSlotMaterial);
-        int amount = Mathf.Max(0, amountSlider.value);
+        int giveAmount = Mathf.Max(0, amountSlider.value);
 
-        if (giveIndex < 0 || receiveIndex < 0 || giveIndex == receiveIndex || amount <= 0)
+        if (giveAmount % GivePerReceiveRatio != 0)
+        {
+            giveAmount -= giveAmount % GivePerReceiveRatio;
+        }
+
+        int receiveAmount = giveAmount / GivePerReceiveRatio;
+
+        if (giveIndex < 0 || receiveIndex < 0 || giveIndex == receiveIndex || giveAmount < GivePerReceiveRatio || receiveAmount <= 0)
         {
             return;
         }
@@ -404,13 +474,13 @@ public class Market : MonoBehaviour
             return;
         }
 
-        if (resources[giveIndex] < amount)
+        if (resources[giveIndex] < giveAmount)
         {
             return;
         }
 
-        resources[giveIndex] -= amount;
-        resources[receiveIndex] += amount;
+        resources[giveIndex] -= giveAmount;
+        resources[receiveIndex] += receiveAmount;
         turns.CurrentResources = resources;
 
         RefreshTradeState();
@@ -427,5 +497,31 @@ public class Market : MonoBehaviour
             default:
                 return -1;
         }
+    }
+
+    private void OnAmountSliderChanged(ChangeEvent<int> evt)
+    {
+        if (amountSlider == null)
+        {
+            return;
+        }
+
+        int value = Mathf.Max(0, evt.newValue);
+        if (value % GivePerReceiveRatio != 0)
+        {
+            value -= value % GivePerReceiveRatio;
+            amountSlider.SetValueWithoutNotify(value);
+        }
+
+        UpdateAmountLabelAndConfirmState();
+    }
+
+    private void ResetSlotsToEmpty()
+    {
+        leftSlotMaterial = SlotMaterial.None;
+        rightSlotMaterial = SlotMaterial.None;
+        CloseSlotMenus();
+        UpdateSlotTexts();
+        RefreshTradeState();
     }
 }

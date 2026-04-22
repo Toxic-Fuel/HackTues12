@@ -4,9 +4,23 @@
             <ui:Label text="Village Market" class="market-title" />
 
             <ui:VisualElement class="slot-row">
-                <ui:Button name="left-slot-button" text="Empty" class="material-slot" />
+                <ui:VisualElement class="material-slot-wrapper">
+                    <ui:Button name="left-slot-button" class="material-slot-button" />
+                    <ui:VisualElement name="left-slot-menu" class="material-slot-menu">
+                        <ui:Button name="left-option-wood" class="material-option-button material-option-button--wood" />
+                        <ui:Button name="left-option-stone" class="material-option-button material-option-button--stone" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
                 <ui:Label text="→" class="slot-arrow" />
-                <ui:Button name="right-slot-button" text="Empty" class="material-slot" />
+
+                <ui:VisualElement class="material-slot-wrapper">
+                    <ui:Button name="right-slot-button" class="material-slot-button" />
+                    <ui:VisualElement name="right-slot-menu" class="material-slot-menu">
+                        <ui:Button name="right-option-wood" class="material-option-button material-option-button--wood" />
+                        <ui:Button name="right-option-stone" class="material-option-button material-option-button--stone" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
             </ui:VisualElement>
 
             <ui:Label name="trade-help-label" text="Pick a material in either slot." class="trade-help-label" />
