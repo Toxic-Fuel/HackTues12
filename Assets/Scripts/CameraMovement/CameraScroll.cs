@@ -8,6 +8,11 @@ public class CameraScroll : MonoBehaviour
     [SerializeField] private float minDistance = 2f;
     [SerializeField] private float maxDistance = 30f;
     [SerializeField] private float zoomSmoothTime = 0.12f;
+    [Header("Portrait View")]
+    [SerializeField] private bool widenViewInPortrait = true;
+    [SerializeField, Range(1f, 2f)] private float portraitDistanceMultiplier = 2.0f;
+    [SerializeField, Min(0f)] private float portraitDistanceBonus = 2f;
+    [SerializeField, Min(0f)] private float portraitMaxDistanceBonus = 12f;
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private CameraHoldMove cameraHoldMove;
 
@@ -27,6 +32,7 @@ public class CameraScroll : MonoBehaviour
     private bool pinchActive;
     private float lastPinchDistance;
     private bool movePressTemporarilyDisabled;
+    private bool wasPortraitScreen;
 
     private void OnEnable()
     {
@@ -50,7 +56,18 @@ public class CameraScroll : MonoBehaviour
             ? transform.localPosition.normalized
             : Vector3.back;
 
-        currentDistance = Mathf.Clamp(transform.localPosition.magnitude, minDistance, maxDistance);
+        wasPortraitScreen = IsPortraitScreen();
+        float effectiveMaxDistance = GetEffectiveMaxDistance(wasPortraitScreen);
+        currentDistance = Mathf.Clamp(transform.localPosition.magnitude, minDistance, effectiveMaxDistance);
+        if (widenViewInPortrait && wasPortraitScreen)
+        {
+            currentDistance = Mathf.Clamp(
+                currentDistance * portraitDistanceMultiplier + portraitDistanceBonus,
+                minDistance,
+                effectiveMaxDistance
+            );
+        }
+
         targetDistance = currentDistance;
         transform.localPosition = zoomDirectionLocal * currentDistance;
     }
@@ -92,12 +109,25 @@ public class CameraScroll : MonoBehaviour
             return;
         }
 
+        bool isPortraitScreen = IsPortraitScreen();
+        float effectiveMaxDistance = GetEffectiveMaxDistance(isPortraitScreen);
+        if (widenViewInPortrait && isPortraitScreen && !wasPortraitScreen)
+        {
+            targetDistance = Mathf.Clamp(
+                targetDistance * portraitDistanceMultiplier + portraitDistanceBonus,
+                minDistance,
+                effectiveMaxDistance
+            );
+        }
+        wasPortraitScreen = isPortraitScreen;
+
         float zoomDelta = ReadScrollDelta() + ReadPinchDelta();
         if (!Mathf.Approximately(zoomDelta, 0f))
         {
             targetDistance -= zoomDelta;
-            targetDistance = Mathf.Clamp(targetDistance, minDistance, maxDistance);
         }
+
+        targetDistance = Mathf.Clamp(targetDistance, minDistance, effectiveMaxDistance);
 
         currentDistance = Mathf.SmoothDamp(currentDistance, targetDistance, ref zoomVelocity, zoomSmoothTime);
         transform.localPosition = zoomDirectionLocal * currentDistance;
@@ -211,5 +241,20 @@ public class CameraScroll : MonoBehaviour
             movePressAction.action.Disable();
             movePressTemporarilyDisabled = true;
         }
+    }
+
+    private static bool IsPortraitScreen()
+    {
+        return Screen.height > Screen.width;
+    }
+
+    private float GetEffectiveMaxDistance(bool isPortraitScreen)
+    {
+        if (widenViewInPortrait && isPortraitScreen)
+        {
+            return maxDistance + Mathf.Max(0f, portraitMaxDistanceBonus);
+        }
+
+        return maxDistance;
     }
 }

@@ -2439,7 +2439,7 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (_collapseButton != null)
         {
-            _collapseButton.text = _isMiniMode ? "Show" : "Hide";
+            _collapseButton.text = _isMiniMode ? "▼" : "▲";
         }
 
         if (_pressureLabel != null)

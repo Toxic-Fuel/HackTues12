@@ -3,7 +3,7 @@
         <ui:VisualElement name="crisis-panel" class="crisis-panel crisis-panel--normal">
             <ui:VisualElement name="crisis-header" class="crisis-header">
                 <ui:Label name="crisis-title" class="crisis-title" text="Village Crisis" />
-                <ui:Button name="crisis-collapse-button" text="Hide" class="crisis-collapse-button" />
+                <ui:Button name="crisis-collapse-button" text="▲" class="crisis-collapse-button" />
             </ui:VisualElement>
 
             <ui:Label name="crisis-summary" class="crisis-text" text="Stability 100/100 | Active 0 | Critical 0" />
