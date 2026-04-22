@@ -44,11 +44,44 @@
     pointer-events: auto;
 }
 
+.market-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
 .market-title {
     -unity-font-style: bold;
     font-size: 24px;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     color: #42441B;
+}
+
+.market-close-button {
+    min-width: 88px;
+    min-height: 40px;
+    -unity-font-style: bold;
+    font-size: 16px;
+    color: rgb(29, 35, 22);
+    background-color: rgb(195, 204, 157);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(58, 66, 43);
+    border-right-color: rgb(58, 66, 43);
+    border-bottom-color: rgb(58, 66, 43);
+    border-left-color: rgb(58, 66, 43);
+    border-radius: 6px;
+}
+
+.market-close-button:hover {
+    background-color: rgb(208, 216, 172);
+}
+
+.market-close-button:active {
+    background-color: rgb(175, 184, 140);
 }
 
 .slot-row {

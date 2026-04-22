@@ -40,6 +40,7 @@ public class Market : MonoBehaviour
     private Label amountLabel;
     private Label tradeHelpLabel;
     private Button confirmTradeButton;
+    private Button closeMarketButton;
 
     private SlotMaterial leftSlotMaterial;
     private SlotMaterial rightSlotMaterial;
@@ -176,6 +177,7 @@ public class Market : MonoBehaviour
         amountLabel = root.Q<Label>("amount-label");
         tradeHelpLabel = root.Q<Label>("trade-help-label");
         confirmTradeButton = root.Q<Button>("confirm-trade-button");
+        closeMarketButton = root.Q<Button>("market-close-button");
 
         if (leftSlotButton != null)
         {
@@ -231,6 +233,11 @@ public class Market : MonoBehaviour
         if (confirmTradeButton != null)
         {
             confirmTradeButton.clicked += ExecuteTrade;
+        }
+
+        if (closeMarketButton != null)
+        {
+            closeMarketButton.clicked += CloseMarketFromButton;
         }
 
         CloseSlotMenus();
@@ -523,5 +530,18 @@ public class Market : MonoBehaviour
         CloseSlotMenus();
         UpdateSlotTexts();
         RefreshTradeState();
+    }
+
+    private void CloseMarketFromButton()
+    {
+        CloseSlotMenus();
+
+        if (selectTile != null)
+        {
+            selectTile.ClearSelection();
+        }
+
+        SetMarketVisible(false);
+        wasMarketVisible = false;
     }
 }

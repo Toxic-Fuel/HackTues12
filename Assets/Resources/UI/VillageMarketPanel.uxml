@@ -1,7 +1,10 @@
 ﻿<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:VisualElement name="market-root" class="market-root">
         <ui:VisualElement name="market-panel" class="market-panel">
-            <ui:Label text="Village Market" class="market-title" />
+            <ui:VisualElement class="market-header">
+                <ui:Label text="Village Market" class="market-title" />
+                <ui:Button name="market-close-button" text="Close" class="market-close-button" />
+            </ui:VisualElement>
 
             <ui:VisualElement class="slot-row">
                 <ui:VisualElement class="material-slot-wrapper">

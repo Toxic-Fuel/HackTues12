@@ -127,6 +127,22 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        bool deselectPressed = deselectAction != null
+            && deselectAction.action != null
+            && deselectAction.action.WasPressedThisFrame();
+
+        if (deselectPressed)
+        {
+            DeselectTile();
+            return;
+        }
+
+        if (IsEscapePressedThisFrame())
+        {
+            DeselectTile();
+            return;
+        }
+
         if (IsSelectInputPressedThisFrame())
         {
             return;
@@ -134,15 +150,7 @@ public class SelectTile : MonoBehaviour
 
         if (IsPointerOverUI())
         {
-            if (!IsEscapePressedThisFrame())
-            {
-                return;
-            }
-        }
-
-        if (deselectAction != null && deselectAction.action != null && deselectAction.action.WasPressedThisFrame())
-        {
-            DeselectTile();
+            return;
         }
     }
 
