@@ -3,6 +3,14 @@ using UnityEngine;
 
 public class LookAtCamera : MonoBehaviour
 {
+    [SerializeField] private bool invertForward;
+
+    public bool InvertForward
+    {
+        get => invertForward;
+        set => invertForward = value;
+    }
+
     private Camera mainCamera;
 
     private void Awake()
@@ -29,6 +37,17 @@ public class LookAtCamera : MonoBehaviour
             }
         }
 
-        transform.LookAt(mainCamera.transform);
+        Vector3 viewDirection = mainCamera.transform.position - transform.position;
+        if (invertForward)
+        {
+            viewDirection = -viewDirection;
+        }
+
+        if (viewDirection.sqrMagnitude <= 0.0001f)
+        {
+            return;
+        }
+
+        transform.rotation = Quaternion.LookRotation(viewDirection.normalized, Vector3.up);
     }
 }
