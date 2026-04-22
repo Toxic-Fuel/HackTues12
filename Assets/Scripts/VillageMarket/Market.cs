@@ -363,9 +363,7 @@ public class Market : MonoBehaviour
 
         if (tradeHelpLabel != null)
         {
-            tradeHelpLabel.text = (leftSlotMaterial == SlotMaterial.None || rightSlotMaterial == SlotMaterial.None)
-                ? "Pick a material in either slot."
-                : "Left slot gives, right slot receives.";
+            tradeHelpLabel.style.display = DisplayStyle.None;
         }
     }
 
