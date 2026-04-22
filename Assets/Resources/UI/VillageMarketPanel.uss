@@ -1,0 +1,187 @@
+.market-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+.market-panel {
+    width: 460px;
+    max-width: 92%;
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(36, 36, 36);
+    border-right-color: rgb(36, 36, 36);
+    border-bottom-color: rgb(36, 36, 36);
+    border-left-color: rgb(36, 36, 36);
+    border-radius: 8px;
+
+    background-image: url("project://database/Assets/Texture/BACKGORUNDTILED.png?fileID=2800000&guid=0a7e11f3cbc595943a925af597caf920&type=3#BACKGORUNDTILED");
+    background-repeat: no-repeat;
+    -unity-slice-type: tiled;
+    -unity-slice-left: 28;
+    -unity-slice-right: 28;
+    -unity-slice-top: 28;
+    -unity-slice-bottom: 28;
+    -unity-slice-scale: 0.75;
+    background-color: rgb(35, 35, 40);
+
+    pointer-events: auto;
+}
+
+.market-title {
+    -unity-font-style: bold;
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #42441B;
+}
+
+.slot-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    gap: 28px; /* more distance between squares */
+}
+
+.material-slot-wrapper {
+    position: relative;
+}
+
+.material-slot-button {
+    width: 92px;
+    min-width: 92px;
+    max-width: 92px;
+    height: 92px;
+    min-height: 92px;
+    max-height: 92px;
+
+    color: rgba(0, 0, 0, 0);
+    background-color: rgb(181, 191, 136);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(58, 66, 43);
+    border-right-color: rgb(58, 66, 43);
+    border-bottom-color: rgb(58, 66, 43);
+    border-left-color: rgb(58, 66, 43);
+    border-radius: 6px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.material-slot-button:hover {
+    background-color: rgb(198, 207, 155);
+}
+
+.material-slot-button:active {
+    background-color: rgb(167, 177, 131);
+}
+
+.material-slot-button--wood {
+    background-image: url("project://database/Assets/Texture/DURVA.png?fileID=2800000&guid=0fc973a135dbae34eb42731655296477&type=3");
+}
+
+.material-slot-button--stone {
+    background-image: url("project://database/Assets/Texture/KAMANITE..png?fileID=2800000&guid=bad4d878afd275946a0a057fd76298f2&type=3");
+}
+
+.material-slot-menu {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    margin-bottom: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 6px;
+    background-color: rgba(232, 227, 205, 0.98);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(58, 66, 43);
+    border-right-color: rgb(58, 66, 43);
+    border-bottom-color: rgb(58, 66, 43);
+    border-left-color: rgb(58, 66, 43);
+}
+
+.material-option-button {
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
+    height: 72px;
+    min-height: 72px;
+    max-height: 72px;
+    color: rgba(0, 0, 0, 0);
+    background-color: rgb(181, 191, 136);
+    border-radius: 6px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.material-option-button--wood {
+    background-image: url("project://database/Assets/Texture/DURVA.png?fileID=2800000&guid=0fc973a135dbae34eb42731655296477&type=3");
+}
+
+.material-option-button--stone {
+    background-image: url("project://database/Assets/Texture/KAMANITE..png?fileID=2800000&guid=bad4d878afd275946a0a057fd76298f2&type=3");
+}
+
+.slot-arrow {
+    font-size: 30px;
+    -unity-font-style: bold;
+    min-width: 32px;
+    -unity-text-align: middle-center;
+    color: #42441B;
+}
+
+.trade-help-label {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #42441B;
+}
+
+.amount-label {
+    font-size: 18px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+    color: #42441B;
+}
+
+.amount-slider {
+    min-height: 54px;
+    margin-bottom: 10px;
+}
+
+.confirm-trade-button {
+    min-height: 56px;
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(29, 35, 22);
+    background-color: rgb(181, 191, 136);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-top-color: rgb(58, 66, 43);
+    border-right-color: rgb(58, 66, 43);
+    border-bottom-color: rgb(58, 66, 43);
+    border-left-color: rgb(58, 66, 43);
+    border-radius: 6px;
+}

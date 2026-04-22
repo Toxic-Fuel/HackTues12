@@ -216,7 +216,15 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
-        if (hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
+        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        if (tileData == null || !IsSelectableTileType(tileData.tileType))
+        {
+            return;
+        }
+
+        bool isVillageTile = tileData.tileType == TileType.Village;
+
+        if (!isVillageTile && hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
         {
             return;
         }
@@ -227,13 +235,7 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
-        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
-        if (tileData == null || !IsSelectableTileType(tileData.tileType))
-        {
-            return;
-        }
-
-        if (hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
+        if (!isVillageTile && hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
         {
             return;
         }
@@ -255,8 +257,7 @@ public class SelectTile : MonoBehaviour
     private static bool IsSelectableTileType(TileType tileType)
     {
         return tileType != TileType.Road
-            && tileType != TileType.City
-            && tileType != TileType.Village;
+            && tileType != TileType.City;
     }
 
     private bool TryGetPointerGridCoordinate(out Vector2Int coordinate)

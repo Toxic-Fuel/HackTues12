@@ -1,0 +1,32 @@
+﻿<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="market-root" class="market-root">
+        <ui:VisualElement name="market-panel" class="market-panel">
+            <ui:Label text="Village Market" class="market-title" />
+
+            <ui:VisualElement class="slot-row">
+                <ui:VisualElement class="material-slot-wrapper">
+                    <ui:Button name="left-slot-button" class="material-slot-button" />
+                    <ui:VisualElement name="left-slot-menu" class="material-slot-menu">
+                        <ui:Button name="left-option-wood" class="material-option-button material-option-button--wood" />
+                        <ui:Button name="left-option-stone" class="material-option-button material-option-button--stone" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:Label text="→" class="slot-arrow" />
+
+                <ui:VisualElement class="material-slot-wrapper">
+                    <ui:Button name="right-slot-button" class="material-slot-button" />
+                    <ui:VisualElement name="right-slot-menu" class="material-slot-menu">
+                        <ui:Button name="right-option-wood" class="material-option-button material-option-button--wood" />
+                        <ui:Button name="right-option-stone" class="material-option-button material-option-button--stone" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:Label name="trade-help-label" text="Pick a material in either slot." class="trade-help-label" />
+            <ui:Label name="amount-label" text="Trade Amount: 0" class="amount-label" />
+            <ui:SliderInt name="amount-slider" low-value="0" high-value="0" value="0" class="amount-slider" />
+            <ui:Button name="confirm-trade-button" text="Trade" class="confirm-trade-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
