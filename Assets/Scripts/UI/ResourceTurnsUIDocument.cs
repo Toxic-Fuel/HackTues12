@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UIElements;
 
 public class ResourceTurnsUIDocument : MonoBehaviour
@@ -6,6 +7,9 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     [Header("References")]
     [SerializeField] private UIDocument uiDocument;
     [SerializeField] private Turns turns;
+
+    [Header("Button Events")]
+    [SerializeField] private UnityEvent OnButtonClicked;
 
     [Header("Panel Scale")]
     [SerializeField] private string hudRootName = "hud-root";
@@ -42,6 +46,7 @@ public class ResourceTurnsUIDocument : MonoBehaviour
 
     private void Awake()
     {
+        OnButtonClicked ??= new UnityEvent();
         CacheElements();
     }
 
@@ -255,6 +260,7 @@ public class ResourceTurnsUIDocument : MonoBehaviour
         }
 
         turns.EndTurn();
+        OnButtonClicked?.Invoke();
     }
 
     private void EnsureTurnsReference()

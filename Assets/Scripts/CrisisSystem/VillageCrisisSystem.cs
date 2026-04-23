@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using GridGeneration;
 using ScoreSystem;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -58,6 +59,8 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField, Range(0.1f, 1f)] private float disconnectedResponsePowerMultiplier = 0.75f;
     [SerializeField, Min(0)] private int disconnectedResolveFloor = 24;
     [SerializeField, Min(0)] private int connectedResolveStabilityBonus = 4;
+    [SerializeField] private UnityEvent onCrisisResponded;
+    [SerializeField] private UnityEvent onButtonClicked;
 
     [Header("Infrastructure Pressure")]
     [SerializeField] private bool increaseBuildCostsDuringInfrastructureCrisis = true;
@@ -194,6 +197,8 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private void Awake()
     {
+        onButtonClicked ??= new UnityEvent();
+
         if (forceDemoFriendlyBalance)
         {
             ApplyDemoFriendlyBalancePreset();
@@ -485,6 +490,7 @@ public class VillageCrisisSystem : MonoBehaviour
             SetResponseStatus($"Response applied: {severityBefore} -> {crisis.severity}");
         }
 
+        onCrisisResponded?.Invoke();
         NotifyStateChanged();
         return true;
     }
@@ -1577,13 +1583,14 @@ public class VillageCrisisSystem : MonoBehaviour
         _resolveHintLabel = _overlayRoot.Q<Label>("crisis-resolve-hint");
         _controlsLabel = _overlayRoot.Q<Label>("crisis-controls");
         _pressureLabel = _overlayRoot.Q<Label>("crisis-pressure");
-        _detailsTop = _overlayRoot.Q<VisualElement>("crisis-details");
-        _detailsMiddle = _overlayRoot.Q<VisualElement>("crisis-details-lower");
-        _detailsBottom = _overlayRoot.Q<VisualElement>("crisis-details-bottom");
         _prevButton = _overlayRoot.Q<Button>("crisis-prev-button");
         _respondButton = _overlayRoot.Q<Button>("crisis-respond-button");
         _nextButton = _overlayRoot.Q<Button>("crisis-next-button");
         _collapseButton = _overlayRoot.Q<Button>("crisis-collapse-button");
+        _detailsTop = _overlayRoot.Q<VisualElement>("crisis-details");
+        _detailsMiddle = _overlayRoot.Q<VisualElement>("crisis-details-lower");
+        _detailsBottom = _overlayRoot.Q<VisualElement>("crisis-details-bottom");
+        _isMiniMode = startInMiniMode;
 
         ConfigurePickingModes();
 
@@ -1610,8 +1617,6 @@ public class VillageCrisisSystem : MonoBehaviour
             _collapseButton.clicked -= OnCollapseButtonClicked;
             _collapseButton.clicked += OnCollapseButtonClicked;
         }
-
-        _isMiniMode = startInMiniMode;
 
         _overlayUiInitialized = true;
         ApplyMiniModeVisualState();
@@ -2493,6 +2498,7 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         SelectPreviousCrisis();
+        onButtonClicked?.Invoke();
     }
 
     private void OnNextButtonClicked()
@@ -2503,6 +2509,7 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         SelectNextCrisis();
+        onButtonClicked?.Invoke();
     }
 
     private void OnRespondButtonClicked()
@@ -2513,6 +2520,7 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         TryRespondToSelectedCrisis();
+        onButtonClicked?.Invoke();
     }
 
     private void OnCollapseButtonClicked()
@@ -2526,6 +2534,7 @@ public class VillageCrisisSystem : MonoBehaviour
         ApplyMiniModeVisualState();
         ApplyResponsiveOverlay(force: true);
         RefreshOverlayText();
+        onButtonClicked?.Invoke();
     }
 
     private void ApplyMiniModeVisualState()
@@ -2722,3 +2731,4 @@ public class VillageCrisisSystem : MonoBehaviour
         stabilityTurnPenaltyOnCritical = 0;
     }
 }
+

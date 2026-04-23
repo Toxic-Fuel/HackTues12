@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 using Sounds;
+using ScoreSystem;
 
 namespace QuestSystem
 {
@@ -14,6 +15,8 @@ namespace QuestSystem
         [SerializeField] private string questCompletedSfxName = "quest_completed_sfx";
         [SerializeField] private int[] rewardResources;
         [SerializeField] private int[] resourceCosts;
+        [SerializeField] private LevelScore levelScore;
+        [SerializeField] private int questScore = 100;
 
         private bool _isCompleted;
         public bool IsCompleted => _isCompleted;
@@ -24,6 +27,15 @@ namespace QuestSystem
             {
                 sfxManager = FindAnyObjectByType<SFXManager>();
             }
+
+            if (levelScore == null)
+            {
+                levelScore = FindAnyObjectByType<LevelScore>();
+            }
+
+            onQuestCompleted ??= new UnityEvent();
+            onQuestCompleted.RemoveListener(HandleQuestCompletedScore);
+            onQuestCompleted.AddListener(HandleQuestCompletedScore);
 
             // Ensure completion always routes through the UnityEvent to the shared SFX manager.
             // onQuestCompleted ??= new UnityEvent();
@@ -83,6 +95,22 @@ namespace QuestSystem
             _isCompleted = true;
 
             onQuestCompleted?.Invoke();
+        }
+
+        private void HandleQuestCompletedScore()
+        {
+            if (levelScore == null)
+            {
+                levelScore = FindAnyObjectByType<LevelScore>();
+            }
+
+            if (levelScore == null)
+            {
+                Debug.LogWarning("Quest: No LevelScore found in scene.", this);
+                return;
+            }
+
+            levelScore.AddQuestScore(questScore);
         }
 
         public void PlayQuestCompletedSfx()

@@ -3,12 +3,24 @@ using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
+using UnityEngine.Audio;
+using System.Collections;
+using UnityEngine.Events;
 
 [RequireComponent(typeof(UIDocument))]
 public class SettingsMenuController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private UIDocument settingsDocument;
+
+    [Header("Audio Mixers")]
+    [SerializeField] private AudioMixer sfxMixer;
+    [SerializeField] private string sfxVolumeParameter = "SFXVolume";
+    [SerializeField] private AudioMixer musicMixer;
+    [SerializeField] private string musicVolumeParameter = "MusicVolume";
+
+    [Header("Button Events")]
+    [SerializeField] private UnityEvent OnButtonClicked;
 
     [Header("Camera Sensitivity Targets")]
     [SerializeField] private CameraHoldMove cameraHoldMove;
@@ -30,9 +42,13 @@ public class SettingsMenuController : MonoBehaviour
     private Button _closeButton;
 
     private readonly Dictionary<Component, bool> _previousEnabledStates = new Dictionary<Component, bool>();
+    private readonly HashSet<string> _missingMixerParametersWarned = new HashSet<string>();
+
     private bool _lastMenuVisibleState;
     private bool _isRestoringSettings;
     private bool _hasLoadedSettings;
+    private bool _startupSettingsApplied;
+    private bool _startupDeferredApplyDone;
 
     private const string KeySfxVolume = "Settings.SfxVolume";
     private const string KeyMusicVolume = "Settings.MusicVolume";
@@ -57,10 +73,13 @@ public class SettingsMenuController : MonoBehaviour
 
     private void Awake()
     {
+        OnButtonClicked ??= new UnityEvent();
         if (settingsDocument == null)
         {
             settingsDocument = GetComponent<UIDocument>();
         }
+
+        EnsureStartupSettingsApplied();
     }
 
     private void OnEnable()
@@ -68,7 +87,7 @@ public class SettingsMenuController : MonoBehaviour
         RegisterInputActions();
 
         CacheTargetControllers();
-        LoadSavedSettingsToState();
+        EnsureStartupSettingsApplied();
         ApplyCurrentSettings();
 
         CacheControls();
@@ -77,6 +96,11 @@ public class SettingsMenuController : MonoBehaviour
 
         _lastMenuVisibleState = IsMenuVisible();
         ApplyMenuEnabledState(_lastMenuVisibleState);
+
+        if (!_startupDeferredApplyDone)
+        {
+            StartCoroutine(ApplyStartupSettingsDeferred());
+        }
     }
 
     private void OnDisable()
@@ -119,6 +143,7 @@ public class SettingsMenuController : MonoBehaviour
         TexturesQualityIndex = GetDropdownIndex(_texturesDropdown);
         ShadowsQualityIndex = GetDropdownIndex(_shadowsDropdown);
 
+        ApplyMixerVolumes();
         ApplySensitivityToCameraControllers();
         ApplyTextureQuality(TexturesQualityIndex);
         ApplyShadowQuality(ShadowsQualityIndex);
@@ -132,6 +157,7 @@ public class SettingsMenuController : MonoBehaviour
 
     private void ApplyCurrentSettings()
     {
+        ApplyMixerVolumes();
         ApplySensitivityToCameraControllers();
         ApplyTextureQuality(TexturesQualityIndex);
         ApplyShadowQuality(ShadowsQualityIndex);
@@ -273,6 +299,18 @@ public class SettingsMenuController : MonoBehaviour
         _hasLoadedSettings = true;
     }
 
+    private void EnsureStartupSettingsApplied()
+    {
+        if (_startupSettingsApplied)
+        {
+            return;
+        }
+
+        LoadSavedSettingsToState();
+        ApplyMixerVolumes();
+        _startupSettingsApplied = true;
+    }
+
     private void LoadStateToUI()
     {
         if (!AreControlsReady())
@@ -347,6 +385,59 @@ public class SettingsMenuController : MonoBehaviour
         PlayerPrefs.SetInt(KeyTexturesQualityIndex, TexturesQualityIndex);
         PlayerPrefs.SetInt(KeyShadowsQualityIndex, ShadowsQualityIndex);
         PlayerPrefs.Save();
+    }
+
+    private void ApplyMixerVolumes()
+    {
+        ApplyMixerVolume(sfxMixer, sfxVolumeParameter, SfxVolume);
+        ApplyMixerVolume(musicMixer, musicVolumeParameter, MusicVolume);
+    }
+
+    private void ApplyMixerVolume(AudioMixer mixer, string exposedParameter, int sliderValue)
+    {
+        if (mixer == null)
+        {
+            return;
+        }
+
+        // Convert 0..100 slider to dB for AudioMixer.SetFloat.
+        float normalized = Mathf.Clamp01(sliderValue / 100f);
+        float db = normalized <= 0.0001f ? -80f : Mathf.Log10(normalized) * 20f;
+
+        // Try the configured parameter first, then common fallback names.
+        if (TrySetMixerDb(mixer, exposedParameter, db))
+        {
+            return;
+        }
+
+        if (TrySetMixerDb(mixer, "MasterVolume", db))
+        {
+            return;
+        }
+
+        if (TrySetMixerDb(mixer, "Volume", db))
+        {
+            return;
+        }
+
+        string warningKey = $"{mixer.name}|{exposedParameter}";
+        if (_missingMixerParametersWarned.Add(warningKey))
+        {
+            Debug.LogWarning(
+                $"SettingsMenuController: Could not set volume on mixer '{mixer.name}'. Expose a float parameter and set its exact name in the inspector. Tried '{exposedParameter}', 'MasterVolume', 'Volume'.",
+                this
+            );
+        }
+    }
+
+    private static bool TrySetMixerDb(AudioMixer mixer, string parameterName, float db)
+    {
+        if (string.IsNullOrWhiteSpace(parameterName))
+        {
+            return false;
+        }
+
+        return mixer.SetFloat(parameterName, db);
     }
 
     private static int GetDropdownIndex(DropdownField dropdown)
@@ -557,6 +648,7 @@ public class SettingsMenuController : MonoBehaviour
     private void OnCloseClicked()
     {
         UpdateSettings();
+        OnButtonClicked?.Invoke();
 
         if (settingsDocument != null)
         {
@@ -616,6 +708,19 @@ public class SettingsMenuController : MonoBehaviour
 
         _lastMenuVisibleState = true;
         ApplyMenuEnabledState(true);
+    }
+
+    private IEnumerator ApplyStartupSettingsDeferred()
+    {
+        _startupDeferredApplyDone = true;
+
+        // Reapply after initial scene startup in case another script overwrote mixer values.
+        yield return null;
+        LoadSavedSettingsToState();
+        ApplyMixerVolumes();
+
+        yield return null;
+        ApplyMixerVolumes();
     }
 }
 
