@@ -961,4 +961,15 @@ public class TileBuilding : MonoBehaviour
         Vector3 spawnPosition = tileInstance.transform.position + Vector3.up * yEffectOffset;
         Instantiate(buildEffectPrefab, spawnPosition, Quaternion.identity);
     }
+
+    public bool IsCoordinateConnectedToCity(Vector2Int coordinate)
+    {
+        if (gridMap == null || !gridMap.IsInsideGrid(coordinate))
+        {
+            return false;
+        }
+
+        HashSet<Vector2Int> connectedNodes = GetConnectedRoadNetworkNodes();
+        return connectedNodes.Contains(coordinate);
+    }
 }

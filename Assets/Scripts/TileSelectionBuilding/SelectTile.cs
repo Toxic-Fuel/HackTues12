@@ -221,36 +221,76 @@ public class SelectTile : MonoBehaviour
     {
         if (!TryGetPointerGridCoordinate(out Vector2Int coordinate))
         {
-            return;
-        }
+            if (HasSelection)
+            {
+                DeselectTile();
+            }
 
-        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
-        if (tileData == null || !IsSelectableTileType(tileData.tileType))
-        {
-            return;
-        }
-
-        bool isVillageTile = tileData.tileType == TileType.Village;
-
-        if (!isVillageTile && hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
-        {
-            return;
-        }
-
-        GameObject clickedTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
-        if (clickedTile == null)
-        {
-            return;
-        }
-
-        if (!isVillageTile && hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
-        {
             return;
         }
 
         if (coordinate == selectedCoordinate)
         {
             DeselectTile();
+            return;
+        }
+
+        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        if (tileData == null || !IsSelectableTileType(tileData.tileType))
+        {
+            if (HasSelection)
+            {
+                DeselectTile();
+            }
+
+            return;
+        }
+
+        bool isVillageTile = tileData.tileType == TileType.Village;
+
+        if (isVillageTile)
+        {
+            if (hoverAnimationSource == null || !hoverAnimationSource.IsCoordinateConnectedToCity(coordinate))
+            {
+                if (HasSelection)
+                {
+                    DeselectTile();
+                }
+
+                return;
+            }
+        }
+        else
+        {
+            if (hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
+            {
+                if (HasSelection)
+                {
+                    DeselectTile();
+                }
+
+                return;
+            }
+
+            if (hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
+            {
+                if (HasSelection)
+                {
+                    DeselectTile();
+                }
+
+                return;
+            }
+        }
+
+        GameObject clickedTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (clickedTile == null)
+        {
+            if (HasSelection)
+            {
+                DeselectTile();
+            }
+
             return;
         }
 

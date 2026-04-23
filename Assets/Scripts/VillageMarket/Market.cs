@@ -15,6 +15,7 @@ public class Market : MonoBehaviour
     [SerializeField] private SelectTile selectTile;
     [SerializeField] private GridMap gridMap;
     [SerializeField] private Turns turns;
+    [SerializeField] private TileBuilding tileBuilding;
 
     [Header("UI Toolkit")]
     [SerializeField] private UIDocument marketDocument;
@@ -48,7 +49,9 @@ public class Market : MonoBehaviour
     private bool uiInitialized;
     private bool wasMarketVisible;
     private const int GivePerReceiveRatio = 2;
-    
+
+    private Vector2Int marketSelectionCoordinate = new Vector2Int(-1, -1);
+
     private void Awake()
     {
         if (selectTile == null)
@@ -64,6 +67,11 @@ public class Market : MonoBehaviour
         if (turns == null)
         {
             turns = FindAnyObjectByType<Turns>();
+        }
+
+        if (tileBuilding == null)
+        {
+            tileBuilding = FindAnyObjectByType<TileBuilding>();
         }
 
         EnsureUiInitialized();
@@ -86,15 +94,46 @@ public class Market : MonoBehaviour
         {
             SetMarketVisible(false);
             wasMarketVisible = false;
+            marketSelectionCoordinate = new Vector2Int(-1, -1);
             return;
         }
 
+        Vector2Int selectedCoordinate = selectTile != null
+            ? selectTile.SelectedCoordinate
+            : new Vector2Int(-1, -1);
+
         bool showMarket = IsVillageCurrentlySelected();
+
+        // If market was open and player clicked a different tile (including another village),
+        // close market and clear selection so it stays closed.
+        if (showMarket
+            && wasMarketVisible
+            && marketSelectionCoordinate.x >= 0
+            && selectedCoordinate != marketSelectionCoordinate)
+        {
+            CloseSlotMenus();
+            SetMarketVisible(false);
+            wasMarketVisible = false;
+            marketSelectionCoordinate = new Vector2Int(-1, -1);
+
+            if (selectTile != null)
+            {
+                selectTile.ClearSelection();
+            }
+
+            return;
+        }
+
         SetMarketVisible(showMarket);
 
         if (showMarket && !wasMarketVisible)
         {
+            marketSelectionCoordinate = selectedCoordinate;
             ResetSlotsToEmpty();
+        }
+        else if (!showMarket)
+        {
+            marketSelectionCoordinate = new Vector2Int(-1, -1);
         }
 
         wasMarketVisible = showMarket;
@@ -314,7 +353,12 @@ public class Market : MonoBehaviour
 
         Vector2Int coordinate = selectTile.SelectedCoordinate;
         GridTile tile = gridMap.GetTileAt(coordinate.x, coordinate.y);
-        return tile != null && tile.tileType == TileType.Village;
+        if (!IsVillageTile(tile))
+        {
+            return false;
+        }
+
+        return IsVillageConnectedToRoadNetwork(coordinate);
     }
 
     private void SetMarketVisible(bool visible)
@@ -390,8 +434,9 @@ public class Market : MonoBehaviour
 
     private void RefreshTradeState()
     {
+        int ratio = GetCurrentGivePerReceiveRatio();
         int available = GetAvailableGivingResourceAmount();
-        int maxTradableGive = available - (available % GivePerReceiveRatio);
+        int maxTradableGive = available - (available % ratio);
 
         if (amountSlider != null)
         {
@@ -399,13 +444,13 @@ public class Market : MonoBehaviour
             amountSlider.highValue = Mathf.Max(0, maxTradableGive);
 
             int clampedValue = Mathf.Clamp(amountSlider.value, 0, Mathf.Max(0, maxTradableGive));
-            if (clampedValue % GivePerReceiveRatio != 0)
+            if (clampedValue % ratio != 0)
             {
-                clampedValue -= clampedValue % GivePerReceiveRatio;
+                clampedValue -= clampedValue % ratio;
             }
 
             amountSlider.SetValueWithoutNotify(clampedValue);
-            amountSlider.SetEnabled(maxTradableGive >= GivePerReceiveRatio && leftSlotMaterial != SlotMaterial.None);
+            amountSlider.SetEnabled(maxTradableGive >= ratio && leftSlotMaterial != SlotMaterial.None);
         }
 
         UpdateAmountLabelAndConfirmState();
@@ -429,21 +474,23 @@ public class Market : MonoBehaviour
 
     private void UpdateAmountLabelAndConfirmState()
     {
+        int ratio = GetCurrentGivePerReceiveRatio();
         int giveAmount = amountSlider != null ? Mathf.Max(0, amountSlider.value) : 0;
-        int receiveAmount = giveAmount / GivePerReceiveRatio;
+        int receiveAmount = ratio > 0 ? giveAmount / ratio : 0;
         int available = GetAvailableGivingResourceAmount();
 
         if (amountLabel != null)
         {
-            amountLabel.text = $"Trade Amount: Give {giveAmount} -> Receive {receiveAmount}";
+            amountLabel.text = $"Trade Amount: Give {giveAmount} -> Receive {receiveAmount} ({ratio}:1)";
         }
 
         if (confirmTradeButton != null)
         {
             bool canTrade = leftSlotMaterial != SlotMaterial.None
                 && rightSlotMaterial != SlotMaterial.None
-                && giveAmount >= GivePerReceiveRatio
-                && giveAmount % GivePerReceiveRatio == 0
+                && ratio > 0
+                && giveAmount >= ratio
+                && giveAmount % ratio == 0
                 && available >= giveAmount;
 
             confirmTradeButton.SetEnabled(canTrade);
@@ -457,18 +504,19 @@ public class Market : MonoBehaviour
             return;
         }
 
+        int ratio = GetCurrentGivePerReceiveRatio();
         int giveIndex = MaterialToResourceIndex(leftSlotMaterial);
         int receiveIndex = MaterialToResourceIndex(rightSlotMaterial);
         int giveAmount = Mathf.Max(0, amountSlider.value);
 
-        if (giveAmount % GivePerReceiveRatio != 0)
+        if (ratio > 0 && giveAmount % ratio != 0)
         {
-            giveAmount -= giveAmount % GivePerReceiveRatio;
+            giveAmount -= giveAmount % ratio;
         }
 
-        int receiveAmount = giveAmount / GivePerReceiveRatio;
+        int receiveAmount = ratio > 0 ? giveAmount / ratio : 0;
 
-        if (giveIndex < 0 || receiveIndex < 0 || giveIndex == receiveIndex || giveAmount < GivePerReceiveRatio || receiveAmount <= 0)
+        if (giveIndex < 0 || receiveIndex < 0 || giveIndex == receiveIndex || ratio <= 0 || giveAmount < ratio || receiveAmount <= 0)
         {
             return;
         }
@@ -511,10 +559,12 @@ public class Market : MonoBehaviour
             return;
         }
 
+        int ratio = GetCurrentGivePerReceiveRatio();
         int value = Mathf.Max(0, evt.newValue);
-        if (value % GivePerReceiveRatio != 0)
+
+        if (ratio > 0 && value % ratio != 0)
         {
-            value -= value % GivePerReceiveRatio;
+            value -= value % ratio;
             amountSlider.SetValueWithoutNotify(value);
         }
 
@@ -541,5 +591,76 @@ public class Market : MonoBehaviour
 
         SetMarketVisible(false);
         wasMarketVisible = false;
+        marketSelectionCoordinate = new Vector2Int(-1, -1);
+    }
+
+    private bool IsVillageConnectedToRoadNetwork(Vector2Int coordinate)
+    {
+        return tileBuilding != null && tileBuilding.IsCoordinateConnectedToCity(coordinate);
+    }
+
+    private static bool IsVillageTile(GridTile tile)
+    {
+        if (tile == null)
+        {
+            return false;
+        }
+
+        return tile.tileType == TileType.Village
+            || string.Equals((tile.tileName ?? string.Empty).Trim(), "Village", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int GetConnectedVillageCountSafe()
+    {
+        return tileBuilding != null ? Mathf.Max(0, tileBuilding.GetConnectedVillageCount()) : 0;
+    }
+
+    private int GetTotalVillageCount()
+    {
+        if (gridMap == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        for (int x = 0; x < gridMap.Width; x++)
+        {
+            for (int y = 0; y < gridMap.Height; y++)
+            {
+                if (IsVillageTile(gridMap.GetTileAt(x, y)))
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private int GetCurrentGivePerReceiveRatio()
+    {
+        int totalVillages = GetTotalVillageCount();
+        if (totalVillages <= 0)
+        {
+            return 3;
+        }
+
+        int connectedVillages = Mathf.Clamp(GetConnectedVillageCountSafe(), 0, totalVillages);
+        if (connectedVillages <= 0)
+        {
+            return 3;
+        }
+
+        if (connectedVillages * 3 <= totalVillages)
+        {
+            return 3;
+        }
+
+        if (connectedVillages * 3 <= totalVillages * 2)
+        {
+            return 2;
+        }
+
+        return 1;
     }
 }
