@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using ScoreSystem;
+using GridGeneration;
 
 namespace UI
 {
@@ -26,6 +27,7 @@ namespace UI
 
         [Header("Live Summary")]
         [SerializeField] private LevelScore levelScore;
+        [SerializeField] private GridMap gridMap;
         [SerializeField, Min(0)] private int fallbackLiveScore;
         [SerializeField, Range(0, 1000)] private int fallbackLiveSpeedRatingPercent = 100;
         [SerializeField, Range(0, 100)] private int fallbackLiveDifficultyPercent = 100;
@@ -38,10 +40,12 @@ namespace UI
         private Label _highscoreText;
         private Label _speedRatingText;
         private Label _difficultyText;
+        private Label _seedText;
         private VisualElement _overlay;
         private VisualElement _panel;
         private Button _viewMapButton;
         private Button _playAgainButton;
+        private Button _playAgainNewSeedButton;
         private Button _quitButton;
         private Button _closeSummaryButton;
 
@@ -193,6 +197,11 @@ namespace UI
                 int safeDifficulty = Mathf.Max(0, difficultyPercent);
                 _difficultyText.text = $"Difficulty rating: {safeDifficulty}%";
             }
+
+            if (_seedText != null)
+            {
+                _seedText.text = BuildSeedSummaryText();
+            }
         }
 
         public void Hide()
@@ -253,10 +262,12 @@ namespace UI
             _highscoreText = root.Q<Label>("HighscoreText");
             _speedRatingText = root.Q<Label>("SpeedRatingText");
             _difficultyText = root.Q<Label>("DifficultyText");
+            _seedText = root.Q<Label>("SeedText");
             _overlay = root.Q<VisualElement>("EndGameOverlay");
             _panel = root.Q<VisualElement>("EndGamePanel");
             _viewMapButton = root.Q<Button>("ViewMapButton");
             _playAgainButton = root.Q<Button>("PlayAgainButton");
+            _playAgainNewSeedButton = root.Q<Button>("PlayAgainNewSeedButton");
             _quitButton = root.Q<Button>("QuitButton");
             _closeSummaryButton = root.Q<Button>("CloseSummaryButton");
         }
@@ -341,6 +352,11 @@ namespace UI
                 _playAgainButton.clicked += OnPlayAgainClicked;
             }
 
+            if (_playAgainNewSeedButton != null)
+            {
+                _playAgainNewSeedButton.clicked += OnPlayAgainNewSeedClicked;
+            }
+
             if (_quitButton != null)
             {
                 _quitButton.clicked += OnQuitClicked;
@@ -362,6 +378,11 @@ namespace UI
             if (_playAgainButton != null)
             {
                 _playAgainButton.clicked -= OnPlayAgainClicked;
+            }
+
+            if (_playAgainNewSeedButton != null)
+            {
+                _playAgainNewSeedButton.clicked -= OnPlayAgainNewSeedClicked;
             }
 
             if (_quitButton != null)
@@ -454,6 +475,28 @@ namespace UI
 
         private void OnPlayAgainClicked()
         {
+            if (gridMap == null)
+            {
+                gridMap = FindAnyObjectByType<GridMap>();
+            }
+
+            if (gridMap != null)
+            {
+                RandomSeed.ForceSeedForNextLoad(gridMap.seed);
+            }
+
+            InGameGenerationMenu.QueueCurrentSettingsForNextGridMap();
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            SceneManager.LoadScene(activeScene.name);
+        }
+
+        private void OnPlayAgainNewSeedClicked()
+        {
+            int newSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            RandomSeed.ForceSeedForNextLoad(newSeed);
+            InGameGenerationMenu.QueueCurrentSettingsForNextGridMapWithSeed(newSeed);
+
             Scene activeScene = SceneManager.GetActiveScene();
             SceneManager.LoadScene(activeScene.name);
         }
@@ -509,6 +552,21 @@ namespace UI
             }
 
             _previousEnabledStates.Clear();
+        }
+
+        private string BuildSeedSummaryText()
+        {
+            if (gridMap == null)
+            {
+                gridMap = FindAnyObjectByType<GridMap>();
+            }
+
+            if (gridMap == null)
+            {
+                return "Seed: N/A";
+            }
+
+            return $"Seed: {gridMap.seed}";
         }
 
         private static bool TryGetComponentEnabled(Component component, out bool enabled)

@@ -1,5 +1,6 @@
 using GridGeneration;
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Events;
@@ -50,6 +51,10 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private Color normalButtonColor = Color.white;
     [SerializeField] private Color selectedButtonColor = new Color(0.82f, 0.82f, 0.62f, 1f);
 
+    [Header("Cost Text Colors")]
+    [SerializeField] private Color affordableCostTextColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+    [SerializeField] private Color unaffordableCostTextColor = new Color(0.92f, 0.25f, 0.25f, 1f);
+
     [Header("Build Costs")]
     [SerializeField] private IntArrayRow[] buildingCostRows;
 
@@ -78,8 +83,19 @@ public class TileBuildContextPanel : MonoBehaviour
     [SerializeField] private float spawnOffsetY = 64f;
     [SerializeField, Min(0f)] private float selectedTileClearancePixels = 40f;
 
+    [Header("Placement")]
+    [SerializeField] private bool anchorToSelectionClickPosition = true;
+    [SerializeField, Min(0f)] private float avoidOverlayPadding = 12f;
+
+    [Header("Layering")]
+    [SerializeField] private bool forceMenusAboveCrisisMenu = true;
+    [SerializeField] private int buildMenuSortingOrder = 320;
+    [SerializeField] private int questMenuSortingOrder = 319;
+
     private Vector2Int currentCoordinate = new Vector2Int(-1, -1);
     private Vector2Int lastCoordinate = new Vector2Int(-1, -1);
+    private Vector2 selectionAnchorScreenPoint;
+    private bool hasSelectionAnchorScreenPoint;
     private float hideUntilTime;
     private bool useCanvasGroupVisibility;
     private CanvasGroup panelCanvasGroup;
@@ -169,7 +185,11 @@ public class TileBuildContextPanel : MonoBehaviour
         }
 
         ConfigurePanelRect(panelRoot);
-        ConfigurePanelRect(GetQuestPanelRect());
+        RectTransform questPanelRect = GetQuestPanelRect();
+        ConfigurePanelRect(questPanelRect);
+
+        EnsurePanelRenderOrder(panelRoot, buildMenuSortingOrder);
+        EnsurePanelRenderOrder(questPanelRect, questMenuSortingOrder);
 
         if (panelRoot != null && panelRoot.gameObject == gameObject)
         {
@@ -204,6 +224,36 @@ public class TileBuildContextPanel : MonoBehaviour
     private void OnValidate()
     {
         SyncBuildDataFromInspector();
+
+        RectTransform questPanelRect = GetQuestPanelRect();
+        EnsurePanelRenderOrder(panelRoot, buildMenuSortingOrder);
+        EnsurePanelRenderOrder(questPanelRect, questMenuSortingOrder);
+    }
+
+    private void EnsurePanelRenderOrder(RectTransform targetPanel, int sortingOrder)
+    {
+        if (!forceMenusAboveCrisisMenu || targetPanel == null)
+        {
+            return;
+        }
+
+        Canvas targetCanvas = targetPanel.GetComponent<Canvas>();
+        if (targetCanvas == null)
+        {
+            targetCanvas = targetPanel.gameObject.AddComponent<Canvas>();
+        }
+
+        targetCanvas.overrideSorting = true;
+        targetCanvas.sortingOrder = sortingOrder;
+        if (canvas != null)
+        {
+            targetCanvas.sortingLayerID = canvas.sortingLayerID;
+        }
+
+        if (targetPanel.GetComponent<GraphicRaycaster>() == null)
+        {
+            targetPanel.gameObject.AddComponent<GraphicRaycaster>();
+        }
     }
 
     private void SyncBuildDataFromInspector()
@@ -249,6 +299,7 @@ public class TileBuildContextPanel : MonoBehaviour
         if (selectTile == null || !selectTile.HasSelection)
         {
             lastCoordinate = new Vector2Int(-1, -1);
+            hasSelectionAnchorScreenPoint = false;
             selectedOption = Building.None;
             currentQuest = null;
             UpdateSelectionVisuals();
@@ -265,6 +316,7 @@ public class TileBuildContextPanel : MonoBehaviour
         if (tile == null || tileInstance == null)
         {
             lastCoordinate = new Vector2Int(-1, -1);
+            hasSelectionAnchorScreenPoint = false;
             currentQuest = null;
             SetPanelVisible(false);
             SetQuestPanelVisible(false);
@@ -273,6 +325,7 @@ public class TileBuildContextPanel : MonoBehaviour
 
         if (tile.tileType == TileType.Quest)
         {
+            hasSelectionAnchorScreenPoint = false;
             SetPanelVisible(false);
             SetQuestPanelVisible(true);
 
@@ -287,6 +340,14 @@ public class TileBuildContextPanel : MonoBehaviour
             UpdateQuestPanelContent(tileInstance);
             return;
         }
+        if (tile.tileType == TileType.Village)
+        {
+            selectedOption = Building.None;
+            UpdateSelectionVisuals();
+            SetQuestPanelVisible(false);
+            SetPanelVisible(false);
+            return;
+        }
 
         currentQuest = null;
         SetQuestPanelVisible(false);
@@ -294,6 +355,7 @@ public class TileBuildContextPanel : MonoBehaviour
         if (coordinate != lastCoordinate)
         {
             lastCoordinate = coordinate;
+            CaptureSelectionAnchorScreenPoint(tileInstance.transform.position);
             if (tileSwitchHideDuration > 0f)
             {
                 hideUntilTime = Time.unscaledTime + tileSwitchHideDuration;
@@ -312,10 +374,7 @@ public class TileBuildContextPanel : MonoBehaviour
         currentCoordinate = coordinate;
         UpdatePanelButtons(tile, coordinate);
         EnsureSelectedOptionIsValid(tile, coordinate, tileChanged);
-        if (tileChanged)
-        {
-            UpdatePanelPositionAtSelection(tileInstance.transform.position);
-        }
+        UpdatePanelPositionAtSelection(tileInstance.transform.position);
 
         bool confirmPressed = buildConfirmAction != null
             && buildConfirmAction.action != null
@@ -525,14 +584,33 @@ public class TileBuildContextPanel : MonoBehaviour
         int woodCost = (cost != null && woodIndex >= 0 && woodIndex < cost.Length) ? cost[woodIndex] : 0;
         int stoneCost = (cost != null && stoneIndex >= 0 && stoneIndex < cost.Length) ? cost[stoneIndex] : 0;
 
+        int currentWood = (turns != null
+            && turns.CurrentResources != null
+            && woodIndex >= 0
+            && woodIndex < turns.CurrentResources.Length)
+            ? turns.CurrentResources[woodIndex]
+            : int.MaxValue;
+
+        int currentStone = (turns != null
+            && turns.CurrentResources != null
+            && stoneIndex >= 0
+            && stoneIndex < turns.CurrentResources.Length)
+            ? turns.CurrentResources[stoneIndex]
+            : int.MaxValue;
+
+        bool lacksWood = currentWood < woodCost;
+        bool lacksStone = currentStone < stoneCost;
+
         if (woodCostText != null)
         {
             woodCostText.text = woodCost.ToString();
+            woodCostText.color = lacksWood ? unaffordableCostTextColor : affordableCostTextColor;
         }
 
         if (stoneCostText != null)
         {
             stoneCostText.text = stoneCost.ToString();
+            stoneCostText.color = lacksStone ? unaffordableCostTextColor : affordableCostTextColor;
         }
     }
 
@@ -683,7 +761,7 @@ public class TileBuildContextPanel : MonoBehaviour
             return;
         }
 
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
+        Vector2 screenPoint = ResolveAnchorScreenPoint(worldPosition);
 
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenPoint, uiCamera, out Vector2 localPoint))
         {
@@ -699,7 +777,7 @@ public class TileBuildContextPanel : MonoBehaviour
 
             if (aboveKeepsTileVisible)
             {
-                targetPanel.anchoredPosition = clampedAbove;
+                targetPanel.anchoredPosition = ResolveAnchoredPositionWithOverlayAvoidance(clampedAbove, parentRect, targetPanel, uiCamera);
                 return;
             }
 
@@ -710,15 +788,158 @@ public class TileBuildContextPanel : MonoBehaviour
 
             if (belowKeepsTileVisible)
             {
-                targetPanel.anchoredPosition = clampedBelow;
+                targetPanel.anchoredPosition = ResolveAnchoredPositionWithOverlayAvoidance(clampedBelow, parentRect, targetPanel, uiCamera);
                 return;
             }
 
             // If both sides are constrained by edges, keep the side with more visual clearance.
             float aboveGap = (clampedAbove.y - bottomPart) - localPoint.y;
             float belowGap = localPoint.y - (clampedBelow.y + topPart);
-            targetPanel.anchoredPosition = aboveGap >= belowGap ? clampedAbove : clampedBelow;
+            Vector2 preferred = aboveGap >= belowGap ? clampedAbove : clampedBelow;
+            targetPanel.anchoredPosition = ResolveAnchoredPositionWithOverlayAvoidance(preferred, parentRect, targetPanel, uiCamera);
         }
+    }
+
+    private void CaptureSelectionAnchorScreenPoint(Vector3 worldPosition)
+    {
+        if (anchorToSelectionClickPosition && Mouse.current != null)
+        {
+            selectionAnchorScreenPoint = Mouse.current.position.ReadValue();
+            hasSelectionAnchorScreenPoint = true;
+            return;
+        }
+
+        selectionAnchorScreenPoint = RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
+        hasSelectionAnchorScreenPoint = true;
+    }
+
+    private Vector2 ResolveAnchorScreenPoint(Vector3 worldPosition)
+    {
+        if (hasSelectionAnchorScreenPoint)
+        {
+            return selectionAnchorScreenPoint;
+        }
+
+        return RectTransformUtility.WorldToScreenPoint(worldCamera, worldPosition);
+    }
+
+    private Vector2 ResolveAnchoredPositionWithOverlayAvoidance(Vector2 desiredPosition, RectTransform parentRect, RectTransform targetPanel, UnityEngine.Camera uiCamera)
+    {
+        Vector2 clampedDesired = ClampToParent(desiredPosition, parentRect, targetPanel);
+
+        if (villageCrisisSystem == null || !villageCrisisSystem.TryGetOverlayPanelScreenBounds(out Rect overlayScreenRect))
+        {
+            return clampedDesired;
+        }
+
+        if (!TryConvertScreenRectToLocal(parentRect, uiCamera, overlayScreenRect, out Rect overlayLocalRect))
+        {
+            return clampedDesired;
+        }
+
+        Rect desiredPanelRect = GetPanelRectAtAnchoredPosition(clampedDesired, targetPanel);
+        if (!desiredPanelRect.Overlaps(overlayLocalRect))
+        {
+            return clampedDesired;
+        }
+
+        Vector2 panelSize = GetPanelSizeInParentSpace(targetPanel);
+        Vector2 pivot = targetPanel.pivot;
+        float padding = Mathf.Max(0f, avoidOverlayPadding);
+
+        Vector2 leftCandidate = ClampToParent(
+            new Vector2(overlayLocalRect.xMin - padding - panelSize.x * (1f - pivot.x), clampedDesired.y),
+            parentRect,
+            targetPanel);
+
+        Vector2 rightCandidate = ClampToParent(
+            new Vector2(overlayLocalRect.xMax + padding + panelSize.x * pivot.x, clampedDesired.y),
+            parentRect,
+            targetPanel);
+
+        Vector2 aboveCandidate = ClampToParent(
+            new Vector2(clampedDesired.x, overlayLocalRect.yMax + padding + panelSize.y * pivot.y),
+            parentRect,
+            targetPanel);
+
+        Vector2 belowCandidate = ClampToParent(
+            new Vector2(clampedDesired.x, overlayLocalRect.yMin - padding - panelSize.y * (1f - pivot.y)),
+            parentRect,
+            targetPanel);
+
+        Vector2[] candidates = { leftCandidate, rightCandidate, aboveCandidate, belowCandidate, clampedDesired };
+        Vector2 best = clampedDesired;
+        float bestScore = float.MaxValue;
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            Vector2 candidate = candidates[i];
+            Rect candidateRect = GetPanelRectAtAnchoredPosition(candidate, targetPanel);
+            float overlapArea = GetOverlapArea(candidateRect, overlayLocalRect);
+            float distancePenalty = (candidate - clampedDesired).sqrMagnitude;
+            float score = overlapArea * 100000f + distancePenalty;
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+
+                if (overlapArea <= 0.0001f)
+                {
+                    break;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    private static bool TryConvertScreenRectToLocal(RectTransform parentRect, UnityEngine.Camera uiCamera, Rect screenRect, out Rect localRect)
+    {
+        localRect = default;
+
+        Vector2[] screenCorners =
+        {
+            new Vector2(screenRect.xMin, screenRect.yMin),
+            new Vector2(screenRect.xMax, screenRect.yMin),
+            new Vector2(screenRect.xMin, screenRect.yMax),
+            new Vector2(screenRect.xMax, screenRect.yMax)
+        };
+
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
+
+        for (int i = 0; i < screenCorners.Length; i++)
+        {
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenCorners[i], uiCamera, out Vector2 localCorner))
+            {
+                return false;
+            }
+
+            minX = Mathf.Min(minX, localCorner.x);
+            minY = Mathf.Min(minY, localCorner.y);
+            maxX = Mathf.Max(maxX, localCorner.x);
+            maxY = Mathf.Max(maxY, localCorner.y);
+        }
+
+        localRect = Rect.MinMaxRect(minX, minY, maxX, maxY);
+        return true;
+    }
+
+    private Rect GetPanelRectAtAnchoredPosition(Vector2 anchoredPosition, RectTransform targetPanel)
+    {
+        Vector2 panelSize = GetPanelSizeInParentSpace(targetPanel);
+        float xMin = anchoredPosition.x - panelSize.x * targetPanel.pivot.x;
+        float yMin = anchoredPosition.y - panelSize.y * targetPanel.pivot.y;
+        return new Rect(xMin, yMin, panelSize.x, panelSize.y);
+    }
+
+    private static float GetOverlapArea(Rect a, Rect b)
+    {
+        float overlapWidth = Mathf.Max(0f, Mathf.Min(a.xMax, b.xMax) - Mathf.Max(a.xMin, b.xMin));
+        float overlapHeight = Mathf.Max(0f, Mathf.Min(a.yMax, b.yMax) - Mathf.Max(a.yMin, b.yMin));
+        return overlapWidth * overlapHeight;
     }
 
     private void UpdatePanelPositionAtSelection(Vector3 worldPosition)

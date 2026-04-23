@@ -127,6 +127,22 @@ public class SelectTile : MonoBehaviour
             return;
         }
 
+        bool deselectPressed = deselectAction != null
+            && deselectAction.action != null
+            && deselectAction.action.WasPressedThisFrame();
+
+        if (deselectPressed)
+        {
+            DeselectTile();
+            return;
+        }
+
+        if (IsEscapePressedThisFrame())
+        {
+            DeselectTile();
+            return;
+        }
+
         if (IsSelectInputPressedThisFrame())
         {
             return;
@@ -134,15 +150,7 @@ public class SelectTile : MonoBehaviour
 
         if (IsPointerOverUI())
         {
-            if (!IsEscapePressedThisFrame())
-            {
-                return;
-            }
-        }
-
-        if (deselectAction != null && deselectAction.action != null && deselectAction.action.WasPressedThisFrame())
-        {
-            DeselectTile();
+            return;
         }
     }
 
@@ -213,34 +221,76 @@ public class SelectTile : MonoBehaviour
     {
         if (!TryGetPointerGridCoordinate(out Vector2Int coordinate))
         {
-            return;
-        }
+            if (HasSelection)
+            {
+                DeselectTile();
+            }
 
-        if (hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
-        {
-            return;
-        }
-
-        GameObject clickedTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
-        if (clickedTile == null)
-        {
-            return;
-        }
-
-        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
-        if (tileData == null || !IsSelectableTileType(tileData.tileType))
-        {
-            return;
-        }
-
-        if (hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
-        {
             return;
         }
 
         if (coordinate == selectedCoordinate)
         {
             DeselectTile();
+            return;
+        }
+
+        GridTile tileData = gridMap.GetTileAt(coordinate.x, coordinate.y);
+        if (tileData == null || !IsSelectableTileType(tileData.tileType))
+        {
+            if (HasSelection)
+            {
+                DeselectTile();
+            }
+
+            return;
+        }
+
+        bool isVillageTile = tileData.tileType == TileType.Village;
+
+        if (isVillageTile)
+        {
+            if (hoverAnimationSource == null || !hoverAnimationSource.IsCoordinateConnectedToCity(coordinate))
+            {
+                if (HasSelection)
+                {
+                    DeselectTile();
+                }
+
+                return;
+            }
+        }
+        else
+        {
+            if (hoverAnimationSource != null && hoverAnimationSource.IsBlockedForHoverOrSelection(coordinate))
+            {
+                if (HasSelection)
+                {
+                    DeselectTile();
+                }
+
+                return;
+            }
+
+            if (hoverAnimationSource != null && !hoverAnimationSource.HasConnectedNeighbor(coordinate))
+            {
+                if (HasSelection)
+                {
+                    DeselectTile();
+                }
+
+                return;
+            }
+        }
+
+        GameObject clickedTile = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (clickedTile == null)
+        {
+            if (HasSelection)
+            {
+                DeselectTile();
+            }
+
             return;
         }
 
@@ -255,8 +305,7 @@ public class SelectTile : MonoBehaviour
     private static bool IsSelectableTileType(TileType tileType)
     {
         return tileType != TileType.Road
-            && tileType != TileType.City
-            && tileType != TileType.Village;
+            && tileType != TileType.City;
     }
 
     private bool TryGetPointerGridCoordinate(out Vector2Int coordinate)

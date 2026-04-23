@@ -3,15 +3,51 @@ using UnityEngine;
 
 public class LookAtCamera : MonoBehaviour
 {
-    private Camera mainCamera;
+    [SerializeField] private bool invertForward;
 
-    private void Start()
+    public bool InvertForward
     {
-        mainCamera = FindObjectOfType<Camera>();
+        get => invertForward;
+        set => invertForward = value;
     }
 
-    void Update()
+    private Camera mainCamera;
+
+    private void Awake()
     {
-        transform.LookAt(mainCamera.transform);
+        mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            mainCamera = FindAnyObjectByType<Camera>();
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                mainCamera = FindAnyObjectByType<Camera>();
+                if (mainCamera == null)
+                {
+                    return;
+                }
+            }
+        }
+
+        Vector3 viewDirection = mainCamera.transform.position - transform.position;
+        if (invertForward)
+        {
+            viewDirection = -viewDirection;
+        }
+
+        if (viewDirection.sqrMagnitude <= 0.0001f)
+        {
+            return;
+        }
+
+        transform.rotation = Quaternion.LookRotation(viewDirection.normalized, Vector3.up);
     }
 }

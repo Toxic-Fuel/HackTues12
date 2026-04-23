@@ -22,6 +22,30 @@ public class WinCondition : MonoBehaviour
     private HashSet<Vector2Int> builtRoads;
     private FieldInfo builtRoadsField;
     private int lastBuiltRoadCount = -1;
+    private bool lastCrisisGateOpen = true;
+    private bool hasCachedCrisisGateState;
+
+    private void OnEnable()
+    {
+        if (turns == null)
+        {
+            turns = FindAnyObjectByType<Turns>();
+        }
+
+        if (turns != null)
+        {
+            turns.TurnEnded -= OnTurnEnded;
+            turns.TurnEnded += OnTurnEnded;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (turns != null)
+        {
+            turns.TurnEnded -= OnTurnEnded;
+        }
+    }
 
     private void Awake()
     {
@@ -64,6 +88,14 @@ public class WinCondition : MonoBehaviour
         yield return new WaitUntil(() => gridMap.tileMap != null);
 
         CacheBuiltRoadReference();
+
+        if (TryGetBuiltRoadCount(out int initialBuiltRoadCount))
+        {
+            lastBuiltRoadCount = initialBuiltRoadCount;
+        }
+
+        lastCrisisGateOpen = crisisSystem == null || crisisSystem.CanDeclareVictory();
+        hasCachedCrisisGateState = true;
         EvaluateWinCondition();
     }
 
@@ -74,18 +106,31 @@ public class WinCondition : MonoBehaviour
             return;
         }
 
-        if (!TryGetBuiltRoadCount(out int currentBuiltRoadCount))
+        bool shouldEvaluate = false;
+
+        if (TryGetBuiltRoadCount(out int currentBuiltRoadCount) && currentBuiltRoadCount != lastBuiltRoadCount)
         {
-            return;
+            lastBuiltRoadCount = currentBuiltRoadCount;
+            shouldEvaluate = true;
         }
 
-        if (currentBuiltRoadCount == lastBuiltRoadCount)
+        if (crisisSystem == null)
         {
-            return;
+            crisisSystem = FindAnyObjectByType<VillageCrisisSystem>();
         }
 
-        lastBuiltRoadCount = currentBuiltRoadCount;
-        EvaluateWinCondition();
+        bool crisisGateOpen = crisisSystem == null || crisisSystem.CanDeclareVictory();
+        if (!hasCachedCrisisGateState || crisisGateOpen != lastCrisisGateOpen)
+        {
+            lastCrisisGateOpen = crisisGateOpen;
+            hasCachedCrisisGateState = true;
+            shouldEvaluate = true;
+        }
+
+        if (shouldEvaluate)
+        {
+            EvaluateWinCondition();
+        }
     }
 
     private void CacheBuiltRoadReference()
@@ -129,6 +174,11 @@ public class WinCondition : MonoBehaviour
 
     public void EvaluateWinCondition()
     {
+        if (gridMap == null || gridMap.tileMap == null)
+        {
+            return;
+        }
+
         if (!TryFindCity(out Vector2Int cityPos))
         {
             Debug.LogError("WinCondition: No city tile found.", this);
@@ -169,6 +219,11 @@ public class WinCondition : MonoBehaviour
         {
             hasWon = false;
         }
+    }
+
+    private void OnTurnEnded(Turns _)
+    {
+        EvaluateWinCondition();
     }
 
     private bool TryFindCity(out Vector2Int cityPos)

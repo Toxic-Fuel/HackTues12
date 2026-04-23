@@ -40,6 +40,18 @@ namespace GridGeneration
         [SerializeField] private GridTile[] tiles;
         [SerializeField] private Transform playerTransform;
         [SerializeField] private float playerSpawnYOffset = 0f;
+        [Header("City Start Marker")]
+        [SerializeField] private bool showCityStartMarker = true;
+        [SerializeField] private GameObject cityStartMarkerPrefab;
+        [SerializeField] private bool hideCityStartMarkerAfterTurns = true;
+        [SerializeField, Min(1)] private int cityStartMarkerVisibleTurns = 1;
+        [SerializeField, Min(0f)] private float cityStartMarkerYOffset = 0.35f;
+        [SerializeField, Min(0.1f)] private float cityStartMarkerScale = 0.8f;
+        [SerializeField] private Color cityStartMarkerColor = new Color(1f, 0.85f, 0.2f, 0.95f);
+        [SerializeField, Min(0)] private int cityStartMarkerSortingOrder = 70;
+        [SerializeField] private bool pulseCityStartMarker = true;
+        [SerializeField, Min(0.1f)] private float cityStartMarkerPulseSpeed = 3f;
+        [SerializeField, Range(0f, 0.4f)] private float cityStartMarkerPulseAmplitude = 0.12f;
         [SerializeField] public int seed;
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
         [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
@@ -68,6 +80,11 @@ namespace GridGeneration
         private float landNoiseMin;
         private float landNoiseMax;
         private float[] nonGrassVariantThresholds;
+        private GameObject cityStartMarkerInstance;
+        private int cityStartMarkerTurnsRemaining;
+        private Vector3 cityStartMarkerBaseScale = Vector3.one;
+        [SerializeField] private Turns turns;
+        private bool isTurnEventsBound;
 
         public float ObstaclePercent
         {
@@ -146,6 +163,25 @@ namespace GridGeneration
         private void Start()
         {
             GenerateLandMap();
+        }
+
+        private void OnEnable()
+        {
+            BindTurnEvents();
+        }
+
+        private void OnDisable()
+        {
+            UnbindTurnEvents();
+        }
+
+        private void Update()
+        {
+            if (pulseCityStartMarker && cityStartMarkerInstance != null)
+            {
+                float pulse = 1f + Mathf.Sin(Time.time * cityStartMarkerPulseSpeed) * cityStartMarkerPulseAmplitude;
+                cityStartMarkerInstance.transform.localScale = cityStartMarkerBaseScale * pulse;
+            }
         }
 
         private void OnValidate()
@@ -301,6 +337,7 @@ namespace GridGeneration
             GenerateQuests(rng);
             PlaceObstacles(rng, obstacleTiles);
             BalanceMineSourceTiles(rng, landTiles, cityPlaced ? cityCoordinate : (Vector2Int?)null);
+            RefreshCityStartMarker(cityPlaced, cityCoordinate);
 
             MapGenerated?.Invoke(this);
         }
@@ -631,6 +668,169 @@ namespace GridGeneration
             playerTransform.position = new Vector3(cityCenter.x, cityCenter.y + playerSpawnYOffset, cityCenter.z);
         }
 
+        private void RefreshCityStartMarker(bool cityPlaced, Vector2Int cityCoordinate)
+        {
+            ClearCityStartMarker();
+            cityStartMarkerTurnsRemaining = 0;
+
+            if (!showCityStartMarker || !cityPlaced)
+            {
+                return;
+            }
+
+            if (gameObjectMap == null || !IsInsideGrid(cityCoordinate))
+            {
+                return;
+            }
+
+            GameObject cityTile = gameObjectMap[cityCoordinate.x, cityCoordinate.y];
+            if (cityTile == null)
+            {
+                return;
+            }
+
+            Vector3 markerPosition = cityTile.transform.position + Vector3.up * Mathf.Max(0f, cityStartMarkerYOffset) * 0.9f;
+            cityStartMarkerInstance = new GameObject("CityStartMarker");
+            cityStartMarkerInstance.transform.SetParent(transform);
+            cityStartMarkerInstance.transform.position = markerPosition;
+            cityStartMarkerBaseScale = Vector3.one * Mathf.Max(0.1f, cityStartMarkerScale);
+            cityStartMarkerInstance.transform.localScale = cityStartMarkerBaseScale;
+            LookAtCamera lookAtCamera = cityStartMarkerInstance.AddComponent<LookAtCamera>();
+            lookAtCamera.InvertForward = true;
+
+            if (hideCityStartMarkerAfterTurns)
+            {
+                cityStartMarkerTurnsRemaining = 1;
+                BindTurnEvents();
+            }
+
+            float safeScale = Mathf.Max(0.1f, cityStartMarkerScale);
+
+            if (cityStartMarkerPrefab != null)
+            {
+                GameObject markerPrefabInstance = Instantiate(cityStartMarkerPrefab, cityStartMarkerInstance.transform);
+                markerPrefabInstance.name = "IconPrefab";
+                markerPrefabInstance.transform.localPosition = Vector3.zero;
+                markerPrefabInstance.transform.localRotation = Quaternion.identity;
+                markerPrefabInstance.transform.localScale = Vector3.one * safeScale;
+            }
+            else
+            {
+                CreateFallbackCityStartArrow(safeScale);
+            }
+        }
+
+        private void CreateFallbackCityStartArrow(float safeScale)
+        {
+            var arrowObject = new GameObject("Arrow");
+            arrowObject.transform.SetParent(cityStartMarkerInstance.transform, false);
+            arrowObject.transform.localPosition = new Vector3(0f, -0.12f * safeScale, 0f);
+
+            var arrowMesh = arrowObject.AddComponent<TextMesh>();
+            arrowMesh.text = "▼";
+            arrowMesh.anchor = TextAnchor.MiddleCenter;
+            arrowMesh.alignment = TextAlignment.Center;
+            arrowMesh.fontStyle = FontStyle.Bold;
+            arrowMesh.fontSize = 120;
+            arrowMesh.characterSize = 0.17f * safeScale;
+            arrowMesh.color = cityStartMarkerColor;
+            ApplyMarkerFontAndSorting(arrowMesh, cityStartMarkerSortingOrder);
+        }
+
+        private static void ApplyMarkerFontAndSorting(TextMesh textMesh, int sortingOrder)
+        {
+            if (textMesh == null)
+            {
+                return;
+            }
+
+            Font markerFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (markerFont == null)
+            {
+                return;
+            }
+
+            textMesh.font = markerFont;
+            MeshRenderer meshRenderer = textMesh.GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                meshRenderer.sharedMaterial = markerFont.material;
+                meshRenderer.sortingOrder = sortingOrder;
+            }
+        }
+
+        private void ClearCityStartMarker()
+        {
+            if (cityStartMarkerInstance == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(cityStartMarkerInstance);
+            }
+            else
+            {
+                DestroyImmediate(cityStartMarkerInstance);
+            }
+
+            cityStartMarkerInstance = null;
+            cityStartMarkerTurnsRemaining = 0;
+            cityStartMarkerBaseScale = Vector3.one;
+        }
+
+        private void BindTurnEvents()
+        {
+            if (isTurnEventsBound)
+            {
+                return;
+            }
+
+            if (turns == null)
+            {
+                turns = FindAnyObjectByType<Turns>();
+            }
+
+            if (turns == null)
+            {
+                return;
+            }
+
+            turns.TurnEnded -= OnTurnEndedForCityStartMarker;
+            turns.TurnEnded += OnTurnEndedForCityStartMarker;
+            isTurnEventsBound = true;
+        }
+
+        private void UnbindTurnEvents()
+        {
+            if (!isTurnEventsBound)
+            {
+                return;
+            }
+
+            if (turns != null)
+            {
+                turns.TurnEnded -= OnTurnEndedForCityStartMarker;
+            }
+
+            isTurnEventsBound = false;
+        }
+
+        private void OnTurnEndedForCityStartMarker(Turns _)
+        {
+            if (!hideCityStartMarkerAfterTurns || cityStartMarkerInstance == null)
+            {
+                return;
+            }
+
+            cityStartMarkerTurnsRemaining = Mathf.Max(0, cityStartMarkerTurnsRemaining - 1);
+            if (cityStartMarkerTurnsRemaining == 0)
+            {
+                ClearCityStartMarker();
+            }
+        }
+
         private void EnsureStarterResourcesAroundCity(System.Random rng, Vector2Int cityCoordinate)
         {
             if (!guaranteeStarterResourceNodes || rng == null || !IsInsideGrid(cityCoordinate))
@@ -847,20 +1047,20 @@ namespace GridGeneration
                     break;
                 }
 
-                visited[bestTo] = true;
                 edges.Add(new NodeEdge(bestFrom, bestTo));
+                visited[bestTo] = true;
             }
 
             return edges;
         }
 
-        private static int ManhattanDistance(Vector2Int a, Vector2Int b)
-        {
-            return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
-        }
-
         private void ProtectWalk(Vector2Int start, Vector2Int end)
         {
+            if (protectedTileMap == null)
+            {
+                return;
+            }
+
             int currentX = start.x;
             int currentY = start.y;
             ProtectCoordinate(currentX, currentY);
@@ -876,6 +1076,11 @@ namespace GridGeneration
                 currentY += currentY < end.y ? 1 : -1;
                 ProtectCoordinate(currentX, currentY);
             }
+        }
+
+        private static int ManhattanDistance(Vector2Int a, Vector2Int b)
+        {
+            return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
         }
 
         private void ProtectCoordinate(int x, int y)
@@ -1352,6 +1557,7 @@ namespace GridGeneration
         {
             int baseTileId = 0;
             int basePrefabId = 0;
+            int cityStartMarkerPrefabId = 0;
 
             if (tiles != null && tiles.Length > 0 && tiles[0] != null)
             {
@@ -1360,6 +1566,11 @@ namespace GridGeneration
                 {
                     basePrefabId = tiles[0].tilePrefab.GetEntityId().GetHashCode();
                 }
+            }
+
+            if (cityStartMarkerPrefab != null)
+            {
+                cityStartMarkerPrefabId = cityStartMarkerPrefab.GetEntityId().GetHashCode();
             }
 
             unchecked
@@ -1387,6 +1598,14 @@ namespace GridGeneration
                 hash = hash * 31 + minMineSourceTiles;
                 hash = hash * 31 + preserveNearestMineSourceToCity.GetHashCode();
                 hash = hash * 31 + logMineSourceBalancing.GetHashCode();
+                hash = hash * 31 + showCityStartMarker.GetHashCode();
+                hash = hash * 31 + hideCityStartMarkerAfterTurns.GetHashCode();
+                hash = hash * 31 + cityStartMarkerVisibleTurns;
+                hash = hash * 31 + cityStartMarkerYOffset.GetHashCode();
+                hash = hash * 31 + cityStartMarkerScale.GetHashCode();
+                hash = hash * 31 + cityStartMarkerColor.GetHashCode();
+                hash = hash * 31 + cityStartMarkerSortingOrder;
+                hash = hash * 31 + cityStartMarkerPrefabId;
                 hash = hash * 31 + baseTileId;
                 hash = hash * 31 + basePrefabId;
 
@@ -1433,6 +1652,9 @@ namespace GridGeneration
             gameObjectMap = null;
             tileMap = null;
             protectedTileMap = null;
+            cityStartMarkerInstance = null;
+            cityStartMarkerTurnsRemaining = 0;
+            cityStartMarkerBaseScale = Vector3.one;
         }
     }
 }

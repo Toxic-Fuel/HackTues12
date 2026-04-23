@@ -15,9 +15,11 @@ public class VillageCrisisSystem : MonoBehaviour
         public VillageCrisisType type;
         public int severity;
         public int ageTurns;
+        public int announcedSeverityStage;
         public bool isActive;
         public GameObject marker;
         public Vector3 markerBaseScale;
+        public SpriteRenderer selectionOutline;
     }
 
     [Header("References")]
@@ -39,11 +41,23 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField, Min(1)] private int severityGainPerTurnMax = 8;
     [SerializeField, Range(0f, 1f)] private float spreadChance = 0.08f;
     [SerializeField, Min(1)] private int criticalSeverityThreshold = 90;
+    [SerializeField] private bool deterministicPerMapSeed = true;
+    [SerializeField] private int crisisSeedOffset = 9173;
+    [SerializeField, Min(0)] private int postResolveSpawnGraceTurns = 2;
+    [SerializeField, Min(0)] private int postResolveSpreadGraceTurns = 1;
+
+    [Header("Severity Milestones")]
+    [SerializeField, Range(1, 99)] private int warningSeverityThreshold = 55;
+    [SerializeField, Range(1, 99)] private int dangerSeverityThreshold = 75;
+    [SerializeField] private bool showSeverityMilestoneAlerts = true;
 
     [Header("Player Response")]
     [SerializeField, Min(1)] private int responseActionCost = 1;
     [SerializeField, Min(1)] private int baseResponsePower = 50;
     [SerializeField, Min(0)] private int extraResponsePowerWhenConnected = 20;
+    [SerializeField, Range(0.1f, 1f)] private float disconnectedResponsePowerMultiplier = 0.75f;
+    [SerializeField, Min(0)] private int disconnectedResolveFloor = 24;
+    [SerializeField, Min(0)] private int connectedResolveStabilityBonus = 4;
 
     [Header("Infrastructure Pressure")]
     [SerializeField] private bool increaseBuildCostsDuringInfrastructureCrisis = true;
@@ -67,13 +81,15 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField] private bool preferTextureMarkerOverPrefab = true;
     [SerializeField, Min(0.1f)] private float textureMarkerWorldSize = 1.2f;
     [SerializeField] private int textureMarkerSortingOrder = 25;
-    [SerializeField] private bool textureMarkerFacesCamera = true;
-    [SerializeField] private Camera markerBillboardCamera;
     [SerializeField] private Vector3 markerOffset = new Vector3(0f, 1.7f, 0f);
-    [SerializeField, Min(0.01f)] private float prefabMarkerScaleMultiplier = 0.20f;
+    [SerializeField, Min(0.01f)] private float prefabMarkerScaleMultiplier = 0.25f;
     [SerializeField] private bool pulseMarkers = true;
     [SerializeField, Min(0.1f)] private float markerPulseSpeed = 3f;
     [SerializeField, Range(0f, 0.4f)] private float markerPulseAmplitude = 0.12f;
+    [SerializeField, Min(1f)] private float selectedMarkerScaleBoost = 1.15f;
+    [SerializeField] private Color selectedMarkerOutlineColor = new Color(0.2f, 0.95f, 1f, 0.95f);
+    [SerializeField, Range(1.01f, 2f)] private float selectedMarkerOutlineScale = 1.14f;
+    [SerializeField] private int selectedMarkerOutlineOrderOffset = -1;
 
     [Header("Debug")]
     [SerializeField] private bool showOverlay = true;
@@ -101,8 +117,10 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField] private bool usePhonePortraitLayout = true;
     [SerializeField, Min(320)] private int phonePortraitMaxScreenWidth = 1300;
     [SerializeField, Range(0.4f, 1f)] private float phonePortraitScaleMultiplier = 0.88f;
+    [SerializeField, Min(180f)] private float phonePortraitFixedPanelWidth = 340f;
     [SerializeField, Min(0f)] private float phonePortraitTopOffset = 118f;
     [SerializeField, Min(0f)] private float phonePortraitSafeAreaTopInset = 38f;
+    [SerializeField, Min(0f)] private float phonePortraitUpwardShift = 72f;
 
     [Header("Overlay Stacking")]
     [SerializeField] private bool stackBelowResourceHudOnNarrowScreens = false;
@@ -126,9 +144,13 @@ public class VillageCrisisSystem : MonoBehaviour
     private int _stability;
     private bool _initialized;
     private int _turnsUntilGuaranteedSpawn;
+    private int _spawnGraceTurnsRemaining;
+    private int _spreadGraceTurnsRemaining;
     private int _lastComputedStabilityDrain;
     private string _responseStatusMessage = "No action yet.";
     private float _responseStatusTimestamp;
+    private System.Random _crisisRng;
+    private int _crisisRngSeed;
     private bool _overlayUiInitialized;
     private int _lastScreenWidth = -1;
     private int _lastScreenHeight = -1;
@@ -197,11 +219,6 @@ public class VillageCrisisSystem : MonoBehaviour
             levelScore = FindAnyObjectByType<LevelScore>();
         }
 
-        if (markerBillboardCamera == null)
-        {
-            markerBillboardCamera = Camera.main;
-        }
-
         _stability = Mathf.Clamp(startingStability, 0, 100);
     }
 
@@ -217,6 +234,12 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             turns.TurnStarted -= OnTurnStarted;
             turns.TurnStarted += OnTurnStarted;
+        }
+
+        if (tileBuilding != null)
+        {
+            tileBuilding.RoadBuiltAt -= OnRoadBuiltAt;
+            tileBuilding.RoadBuiltAt += OnRoadBuiltAt;
         }
 
         RegisterAction(previousCrisisAction, OnPreviousCrisisPerformed);
@@ -245,6 +268,11 @@ public class VillageCrisisSystem : MonoBehaviour
             turns.TurnStarted -= OnTurnStarted;
         }
 
+        if (tileBuilding != null)
+        {
+            tileBuilding.RoadBuiltAt -= OnRoadBuiltAt;
+        }
+
         UnregisterAction(previousCrisisAction, OnPreviousCrisisPerformed);
         UnregisterAction(nextCrisisAction, OnNextCrisisPerformed);
         UnregisterAction(respondCrisisAction, OnRespondPerformed);
@@ -261,6 +289,8 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         float pulse = 1f + Mathf.Sin(Time.time * markerPulseSpeed) * markerPulseAmplitude;
+        int selectedIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
+        float selectedBoost = Mathf.Max(1f, selectedMarkerScaleBoost);
         for (int i = 0; i < _activeCrises.Count; i++)
         {
             VillageCrisisState crisis = _activeCrises[i];
@@ -269,12 +299,13 @@ public class VillageCrisisSystem : MonoBehaviour
                 continue;
             }
 
-            if (textureMarkerFacesCamera)
+            float scale = pulse;
+            if (i == selectedIndex)
             {
-                AlignMarkerToCamera(crisis.marker.transform);
+                scale *= selectedBoost;
             }
 
-            crisis.marker.transform.localScale = crisis.markerBaseScale * pulse;
+            crisis.marker.transform.localScale = crisis.markerBaseScale * scale;
         }
     }
 
@@ -421,18 +452,32 @@ public class VillageCrisisSystem : MonoBehaviour
             return false;
         }
 
-        int responsePower = baseResponsePower;
-        if (IsVillageConnectedToCity(crisis.coordinate))
+        bool connectedAtResponse = IsVillageConnectedToCity(crisis.coordinate);
+        int responsePower = Mathf.Max(1, Mathf.RoundToInt(baseResponsePower * (connectedAtResponse ? 1f : disconnectedResponsePowerMultiplier)));
+        if (connectedAtResponse)
         {
             responsePower += extraResponsePowerWhenConnected;
         }
 
         int severityBefore = crisis.severity;
-        crisis.severity = Mathf.Max(0, crisis.severity - responsePower);
+        int severityAfterResponse = Mathf.Max(0, severityBefore - responsePower);
+        if (!connectedAtResponse && disconnectedResolveFloor > 0)
+        {
+            int containmentFloor = Mathf.Clamp(disconnectedResolveFloor, 1, 99);
+            severityAfterResponse = Mathf.Max(containmentFloor, severityAfterResponse);
+        }
+
+        crisis.severity = severityAfterResponse;
         if (crisis.severity <= 0)
         {
             ResolveCrisis(crisis);
-            SetResponseStatus($"Resolved crisis! ({severityBefore} -> 0)");
+            int resolveReward = Mathf.Max(0, resolveStabilityReward) + (connectedAtResponse ? Mathf.Max(0, connectedResolveStabilityBonus) : 0);
+            SetResponseStatus($"Resolved crisis! ({severityBefore} -> 0, +{resolveReward} Health)");
+        }
+        else if (!connectedAtResponse && disconnectedResolveFloor > 0 && crisis.severity <= disconnectedResolveFloor)
+        {
+            SetResponseStatus($"Crisis contained at {crisis.severity}. Connect village to city to fully resolve.");
+            UpdateMarkerVisual(crisis);
         }
         else
         {
@@ -458,6 +503,7 @@ public class VillageCrisisSystem : MonoBehaviour
             Debug.Log($"Crisis selected: {selected.type} at {selected.coordinate} (severity {selected.severity})", this);
         }
 
+        RefreshAllMarkerVisuals();
         RefreshOverlayText();
     }
 
@@ -480,6 +526,7 @@ public class VillageCrisisSystem : MonoBehaviour
             Debug.Log($"Crisis selected: {selected.type} at {selected.coordinate} (severity {selected.severity})", this);
         }
 
+        RefreshAllMarkerVisuals();
         RefreshOverlayText();
     }
 
@@ -528,7 +575,10 @@ public class VillageCrisisSystem : MonoBehaviour
         _selectedCrisisIndex = 0;
         _stability = Mathf.Clamp(startingStability, 0, 100);
         _turnsUntilGuaranteedSpawn = Mathf.Max(1, guaranteedSpawnIntervalTurns);
+        _spawnGraceTurnsRemaining = 0;
+        _spreadGraceTurnsRemaining = 0;
         _lastComputedStabilityDrain = 0;
+        InitializeCrisisRng();
         SetResponseStatus("Crisis system initialized.");
         _initialized = _allVillages.Count > 0;
 
@@ -554,17 +604,41 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         RebuildConnectivityCache();
+        bool allowSpread = ConsumeSpreadGraceTurn();
+        bool allowSpawn = ConsumeSpawnGraceTurn();
         EscalateCrises();
-        TrySpreadCrises();
-        bool guaranteedSpawn = AdvanceGuaranteedSpawnTimer();
-        TrySpawnCrisis(forceSpawn: false, guaranteedSpawnFromTimer: guaranteedSpawn);
+        if (allowSpread)
+        {
+            TrySpreadCrises();
+        }
+
+        if (allowSpawn)
+        {
+            bool guaranteedSpawn = AdvanceGuaranteedSpawnTimer();
+            TrySpawnCrisis(forceSpawn: false, guaranteedSpawnFromTimer: guaranteedSpawn);
+        }
+
         ApplyStabilityPressure();
 
         NotifyStateChanged();
     }
 
+    private void OnRoadBuiltAt(Vector2Int _)
+    {
+        if (!_initialized)
+        {
+            return;
+        }
+
+        RebuildConnectivityCache();
+        RefreshOverlayText();
+    }
+
     private void EscalateCrises()
     {
+        string highestPriorityAlert = null;
+        int highestAlertStage = -1;
+
         for (int i = 0; i < _activeCrises.Count; i++)
         {
             VillageCrisisState crisis = _activeCrises[i];
@@ -573,20 +647,36 @@ public class VillageCrisisSystem : MonoBehaviour
                 continue;
             }
 
-            int gain = UnityEngine.Random.Range(severityGainPerTurnMin, severityGainPerTurnMax + 1);
+            int gain = NextRandomIntInclusive(severityGainPerTurnMin, severityGainPerTurnMax);
             if (IsVillageConnectedToCity(crisis.coordinate))
             {
-                gain = Mathf.Max(1, Mathf.RoundToInt(gain * 0.7f));
+                gain = Mathf.Max(1, Mathf.RoundToInt(gain * 0.70f));
             }
 
             crisis.severity = Mathf.Clamp(crisis.severity + gain, 0, 100);
             crisis.ageTurns++;
             UpdateMarkerVisual(crisis);
 
+            int stageNow = GetSeverityStage(crisis.severity);
+            if (showSeverityMilestoneAlerts && stageNow > crisis.announcedSeverityStage)
+            {
+                crisis.announcedSeverityStage = stageNow;
+                if (stageNow > highestAlertStage)
+                {
+                    highestAlertStage = stageNow;
+                    highestPriorityAlert = BuildSeverityMilestoneMessage(crisis, stageNow);
+                }
+            }
+
             if (crisis.severity >= criticalSeverityThreshold)
             {
                 turns.TrySpendTurns(stabilityTurnPenaltyOnCritical);
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(highestPriorityAlert))
+        {
+            SetResponseStatus(highestPriorityAlert);
         }
     }
 
@@ -611,7 +701,7 @@ public class VillageCrisisSystem : MonoBehaviour
                 continue;
             }
 
-            if (UnityEngine.Random.value > spreadChance)
+            if (NextRandomValue01() > spreadChance)
             {
                 continue;
             }
@@ -622,9 +712,7 @@ public class VillageCrisisSystem : MonoBehaviour
                 continue;
             }
 
-            CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(35, 61));
-            CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(22, 44));
-            CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(28, 48));
+            CreateCrisisAt(target, RandomCrisisType(), NextRandomIntInclusive(35, 60));
         }
     }
 
@@ -648,9 +736,9 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         float chance = (forceSpawn || guaranteedSpawnFromTimer) ? 1f : baseSpawnChance;
-        chance = Mathf.Clamp01(chance + _activeCrises.Count * 0.05f);
+        chance = Mathf.Clamp01(chance + _activeCrises.Count * 0.02f);
 
-        if (!forceSpawn && !guaranteedSpawnFromTimer && UnityEngine.Random.value > chance)
+        if (!forceSpawn && !guaranteedSpawnFromTimer && NextRandomValue01() > chance)
         {
             return;
         }
@@ -661,14 +749,13 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
-        CreateCrisisAt(target, RandomCrisisType(), UnityEngine.Random.Range(28, 56));
+        CreateCrisisAt(target, RandomCrisisType(), NextRandomIntInclusive(28, 55));
     }
 
     private void ApplyStabilityPressure()
     {
-        int criticalCount = CountCriticalCrises();
-        int drain = passiveStabilityDrain + _activeCrises.Count + criticalCount * criticalCrisisStabilityDrain;
-        _lastComputedStabilityDrain = Mathf.Max(0, drain);
+        int drain = ComputeCurrentStabilityDrain();
+        _lastComputedStabilityDrain = drain;
         _stability = Mathf.Clamp(_stability - Mathf.Max(0, drain), 0, 100);
 
         if (_stability <= 0)
@@ -682,6 +769,39 @@ public class VillageCrisisSystem : MonoBehaviour
         }
     }
 
+    private int ComputeCurrentStabilityDrain()
+    {
+        int criticalCount = 0;
+        int severityPressureBonus = 0;
+
+        for (int i = 0; i < _activeCrises.Count; i++)
+        {
+            VillageCrisisState crisis = _activeCrises[i];
+            if (crisis == null || !crisis.isActive)
+            {
+                continue;
+            }
+
+            int severityStage = GetSeverityStage(crisis.severity);
+            if (severityStage >= 2)
+            {
+                severityPressureBonus += 1;
+            }
+
+            if (severityStage >= 3)
+            {
+                severityPressureBonus += 1;
+                criticalCount++;
+            }
+        }
+
+        int drain = passiveStabilityDrain
+            + _activeCrises.Count
+            + criticalCount * criticalCrisisStabilityDrain
+            + severityPressureBonus;
+        return Mathf.Max(0, drain);
+    }
+
     private void ResolveCrisis(VillageCrisisState crisis)
     {
         if (crisis == null)
@@ -689,6 +809,7 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        ClearSelectionOutline(crisis);
         if (crisis.marker != null)
         {
             Destroy(crisis.marker);
@@ -701,7 +822,17 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         _activeCrises.Remove(crisis);
-        _stability = Mathf.Clamp(_stability + resolveStabilityReward, 0, 100);
+
+        int stabilityReward = Mathf.Max(0, resolveStabilityReward);
+        if (IsVillageConnectedToCity(crisis.coordinate))
+        {
+            stabilityReward += Mathf.Max(0, connectedResolveStabilityBonus);
+        }
+
+        _stability = Mathf.Clamp(_stability + stabilityReward, 0, 100);
+        _spawnGraceTurnsRemaining = Mathf.Max(_spawnGraceTurnsRemaining, Mathf.Max(0, postResolveSpawnGraceTurns));
+        _spreadGraceTurnsRemaining = Mathf.Max(_spreadGraceTurnsRemaining, Mathf.Max(0, postResolveSpreadGraceTurns));
+        _turnsUntilGuaranteedSpawn = Mathf.Max(1, guaranteedSpawnIntervalTurns);
 
         if (levelScore != null)
         {
@@ -716,6 +847,8 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             _selectedCrisisIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
         }
+
+        RefreshAllMarkerVisuals();
     }
 
     private void CreateCrisisAt(Vector2Int villageCoordinate, VillageCrisisType type, int initialSeverity)
@@ -733,6 +866,7 @@ public class VillageCrisisSystem : MonoBehaviour
             type = type,
             severity = Mathf.Clamp(initialSeverity, 1, 100),
             ageTurns = 0,
+            announcedSeverityStage = GetSeverityStage(initialSeverity),
             isActive = true,
             marker = markerInstance,
             markerBaseScale = markerInstance != null ? markerInstance.transform.localScale : Vector3.one
@@ -746,6 +880,28 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             Debug.Log($"New crisis: {type} at {villageCoordinate}, severity {crisis.severity}", this);
         }
+    }
+
+    private bool ConsumeSpawnGraceTurn()
+    {
+        if (_spawnGraceTurnsRemaining <= 0)
+        {
+            return true;
+        }
+
+        _spawnGraceTurnsRemaining = Mathf.Max(0, _spawnGraceTurnsRemaining - 1);
+        return false;
+    }
+
+    private bool ConsumeSpreadGraceTurn()
+    {
+        if (_spreadGraceTurnsRemaining <= 0)
+        {
+            return true;
+        }
+
+        _spreadGraceTurnsRemaining = Mathf.Max(0, _spreadGraceTurnsRemaining - 1);
+        return false;
     }
 
     private GameObject CreateMarker(Vector2Int coordinate)
@@ -810,11 +966,6 @@ public class VillageCrisisSystem : MonoBehaviour
         spriteRenderer.sortingOrder = textureMarkerSortingOrder;
         spriteRenderer.color = Color.white;
 
-        if (textureMarkerFacesCamera)
-        {
-            AlignMarkerToCamera(markerObject.transform);
-        }
-
         return markerObject;
     }
 
@@ -843,61 +994,9 @@ public class VillageCrisisSystem : MonoBehaviour
         return _cachedTextureMarkerSprite;
     }
 
-    private void AlignMarkerToCamera(Transform markerTransform)
-    {
-        if (markerTransform == null)
-        {
-            return;
-        }
-
-        if (markerBillboardCamera == null)
-        {
-            markerBillboardCamera = Camera.main;
-            if (markerBillboardCamera == null)
-            {
-                return;
-            }
-        }
-
-        Vector3 toCamera = markerTransform.position - markerBillboardCamera.transform.position;
-        if (toCamera.sqrMagnitude <= 0.0001f)
-        {
-            return;
-        }
-
-        markerTransform.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up);
-    }
-
     private void UpdateMarkerVisual(VillageCrisisState crisis)
     {
         if (crisis == null || crisis.marker == null)
-        {
-            return;
-        }
-
-        SpriteRenderer spriteRenderer = crisis.marker.GetComponentInChildren<SpriteRenderer>();
-        if (spriteRenderer != null)
-        {
-            Color spriteColor = Color.green;
-            if (crisis.severity >= criticalSeverityThreshold)
-            {
-                spriteColor = new Color(0.95f, 0.12f, 0.12f);
-            }
-            else if (crisis.severity >= criticalSeverityThreshold * 0.65f)
-            {
-                spriteColor = new Color(0.98f, 0.52f, 0.06f);
-            }
-            else
-            {
-                spriteColor = new Color(0.98f, 0.86f, 0.1f);
-            }
-
-            spriteRenderer.color = spriteColor;
-            return;
-        }
-
-        Renderer[] renderers = crisis.marker.GetComponentsInChildren<Renderer>();
-        if (renderers == null || renderers.Length == 0)
         {
             return;
         }
@@ -916,6 +1015,22 @@ public class VillageCrisisSystem : MonoBehaviour
             color = new Color(0.98f, 0.86f, 0.1f);
         }
 
+        SpriteRenderer spriteRenderer = crisis.marker.GetComponentInChildren<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = color;
+            UpdateSelectionOutline(crisis, spriteRenderer);
+            return;
+        }
+
+        ClearSelectionOutline(crisis);
+
+        Renderer[] renderers = crisis.marker.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer rendererComponent = renderers[i];
@@ -926,6 +1041,72 @@ public class VillageCrisisSystem : MonoBehaviour
 
             rendererComponent.material.color = color;
         }
+    }
+
+    private bool IsSelectedCrisis(VillageCrisisState crisis)
+    {
+        if (crisis == null || _activeCrises.Count == 0)
+        {
+            return false;
+        }
+
+        int selectedIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
+        return ReferenceEquals(_activeCrises[selectedIndex], crisis);
+    }
+
+    private void RefreshAllMarkerVisuals()
+    {
+        for (int i = 0; i < _activeCrises.Count; i++)
+        {
+            UpdateMarkerVisual(_activeCrises[i]);
+        }
+    }
+
+    private void UpdateSelectionOutline(VillageCrisisState crisis, SpriteRenderer markerRenderer)
+    {
+        if (crisis == null)
+        {
+            return;
+        }
+
+        bool shouldShowOutline = IsSelectedCrisis(crisis)
+            && markerRenderer != null
+            && markerRenderer.sprite != null;
+
+        if (!shouldShowOutline)
+        {
+            ClearSelectionOutline(crisis);
+            return;
+        }
+
+        if (crisis.selectionOutline == null)
+        {
+            GameObject outlineObject = new GameObject("SelectionOutline");
+            outlineObject.transform.SetParent(markerRenderer.transform, false);
+            outlineObject.transform.localPosition = Vector3.zero;
+            outlineObject.transform.localRotation = Quaternion.identity;
+            crisis.selectionOutline = outlineObject.AddComponent<SpriteRenderer>();
+        }
+
+        SpriteRenderer outlineRenderer = crisis.selectionOutline;
+        outlineRenderer.sprite = markerRenderer.sprite;
+        outlineRenderer.color = selectedMarkerOutlineColor;
+        outlineRenderer.sortingLayerID = markerRenderer.sortingLayerID;
+        outlineRenderer.sortingOrder = markerRenderer.sortingOrder + selectedMarkerOutlineOrderOffset;
+
+        float outlineScale = Mathf.Max(1.01f, selectedMarkerOutlineScale);
+        outlineRenderer.transform.localScale = new Vector3(outlineScale, outlineScale, 1f);
+    }
+
+    private void ClearSelectionOutline(VillageCrisisState crisis)
+    {
+        if (crisis == null || crisis.selectionOutline == null)
+        {
+            return;
+        }
+
+        Destroy(crisis.selectionOutline.gameObject);
+        crisis.selectionOutline = null;
     }
 
     private void OnDestroy()
@@ -1089,7 +1270,7 @@ public class VillageCrisisSystem : MonoBehaviour
             return new Vector2Int(-1, -1);
         }
 
-        int randomIndex = UnityEngine.Random.Range(0, candidates.Count);
+        int randomIndex = NextRandomIntInclusive(0, candidates.Count - 1);
         return candidates[randomIndex];
     }
 
@@ -1109,8 +1290,67 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private VillageCrisisType RandomCrisisType()
     {
-        int value = UnityEngine.Random.Range(1, 6);
+        int value = NextRandomIntInclusive(1, 5);
         return (VillageCrisisType)value;
+    }
+
+    private void InitializeCrisisRng()
+    {
+        int mapSeed = gridMap != null ? gridMap.seed : 0;
+        unchecked
+        {
+            int widthHash = gridMap != null ? gridMap.Width * 73856093 : 0;
+            int heightHash = gridMap != null ? gridMap.Height * 19349663 : 0;
+            int baseSeed = mapSeed ^ widthHash ^ heightHash ^ crisisSeedOffset;
+            _crisisRngSeed = deterministicPerMapSeed ? baseSeed : (Environment.TickCount ^ baseSeed);
+        }
+
+        if (_crisisRngSeed == int.MinValue)
+        {
+            _crisisRngSeed = int.MaxValue;
+        }
+
+        if (_crisisRngSeed < 0)
+        {
+            _crisisRngSeed = -_crisisRngSeed;
+        }
+
+        if (_crisisRngSeed == 0)
+        {
+            _crisisRngSeed = 1;
+        }
+
+        _crisisRng = new System.Random(_crisisRngSeed);
+    }
+
+    private int NextRandomIntInclusive(int minInclusive, int maxInclusive)
+    {
+        if (maxInclusive < minInclusive)
+        {
+            (minInclusive, maxInclusive) = (maxInclusive, minInclusive);
+        }
+
+        if (_crisisRng == null)
+        {
+            InitializeCrisisRng();
+        }
+
+        if (minInclusive == maxInclusive)
+        {
+            return minInclusive;
+        }
+
+        return _crisisRng.Next(minInclusive, maxInclusive + 1);
+    }
+
+    private float NextRandomValue01()
+    {
+        if (_crisisRng == null)
+        {
+            InitializeCrisisRng();
+        }
+
+        return (float)_crisisRng.NextDouble();
     }
 
     private int CountCriticalCrises()
@@ -1154,6 +1394,7 @@ public class VillageCrisisSystem : MonoBehaviour
             VillageCrisisState crisis = _activeCrises[i];
             if (crisis != null && crisis.marker != null)
             {
+                ClearSelectionOutline(crisis);
                 Destroy(crisis.marker);
                 crisis.marker = null;
             }
@@ -1386,6 +1627,11 @@ public class VillageCrisisSystem : MonoBehaviour
             _overlayRoot.pickingMode = PickingMode.Ignore;
         }
 
+        if (_overlayContainer != null)
+        {
+            _overlayContainer.pickingMode = PickingMode.Ignore;
+        }
+
         if (_overlayPanel != null)
         {
             _overlayPanel.pickingMode = PickingMode.Ignore;
@@ -1576,10 +1822,25 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (!applyStackedLayout)
         {
+            if (isPhonePortraitLayout)
+            {
+                float requestedPhoneWidth = Mathf.Clamp(phonePortraitFixedPanelWidth, 300f, 360f);
+                float fixedWidth = Mathf.Clamp(
+                    requestedPhoneWidth,
+                    180f,
+                    Mathf.Max(180f, Screen.width - 12f)
+                );
+
+                _overlayPanel.style.width = fixedWidth;
+                _overlayPanel.style.minWidth = fixedWidth;
+                _overlayPanel.style.maxWidth = fixedWidth;
+            }
+
             float resolvedTopMargin = ResolveCrisisPanelTopMargin(isPhonePortraitLayout, canStackByWidth, hasResourceHudBounds ? resourceHudBounds : default);
             if (isPhonePortraitLayout)
             {
-                resolvedTopMargin += Mathf.Max(0f, phonePortraitSafeAreaTopInset);
+                resolvedTopMargin += Mathf.Max(0f, phonePortraitSafeAreaTopInset * 0.05f);
+                resolvedTopMargin = Mathf.Min(resolvedTopMargin, 8f);
             }
 
             if (resolvedTopMargin > 0.01f)
@@ -1604,10 +1865,11 @@ public class VillageCrisisSystem : MonoBehaviour
         float resolvedMaxVisualScale = Mathf.Max(minOverlayVisualScale, maxOverlayVisualScale);
         float resolvedMinVisualScale = Mathf.Max(0.5f, minOverlayVisualScale);
         float safeGlobalScaleMultiplier = Mathf.Clamp(globalOverlayScaleMultiplier, 0.7f, 1.2f);
+        float effectiveGlobalScaleMultiplier = isPhonePortraitLayout ? 1f : safeGlobalScaleMultiplier;
 
         if (isPhonePortraitLayout)
         {
-            resolvedMinVisualScale = Mathf.Min(resolvedMinVisualScale, 0.9f);
+            resolvedMinVisualScale = Mathf.Max(1f, resolvedMinVisualScale);
             resolvedMaxVisualScale = Mathf.Min(resolvedMaxVisualScale, 1.2f);
         }
 
@@ -1622,7 +1884,7 @@ public class VillageCrisisSystem : MonoBehaviour
             float noAutoScale = isPhonePortraitLayout
                 ? Mathf.Clamp(phonePortraitScaleMultiplier, resolvedMinVisualScale, resolvedMaxVisualScale)
                 : 1f;
-            noAutoScale *= safeGlobalScaleMultiplier;
+            noAutoScale *= effectiveGlobalScaleMultiplier;
             _overlayPanel.style.scale = new Scale(new Vector3(noAutoScale, noAutoScale, 1f));
             return;
         }
@@ -1635,8 +1897,8 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         float visualScale = Mathf.Clamp(rawScale, resolvedMinVisualScale, resolvedMaxVisualScale);
-        visualScale *= safeGlobalScaleMultiplier;
-        float scaledRawScaleForClass = rawScale * safeGlobalScaleMultiplier;
+        visualScale *= effectiveGlobalScaleMultiplier;
+        float scaledRawScaleForClass = rawScale * effectiveGlobalScaleMultiplier;
 
         _overlayPanel.style.transformOrigin = new TransformOrigin(
             new Length(applyStackedLayout ? 0f : 100f, LengthUnit.Percent),
@@ -1753,12 +2015,17 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private float ResolveCrisisPanelTopMargin(bool isPhonePortraitLayout, bool canStackByWidth, Rect resourceHudBounds)
     {
-        if (!canStackByWidth)
+        float topMargin = 0f;
+        if (isPhonePortraitLayout)
         {
-            return 0f;
+            topMargin = Mathf.Max(0f, phonePortraitTopOffset - Mathf.Max(0f, phonePortraitUpwardShift));
+            topMargin = Mathf.Min(topMargin, 8f);
         }
 
-        float topMargin = isPhonePortraitLayout ? Mathf.Max(0f, phonePortraitTopOffset) : 0f;
+        if (!canStackByWidth)
+        {
+            return topMargin;
+        }
 
         if (resourceHudBounds.height > 1f)
         {
@@ -1784,6 +2051,29 @@ public class VillageCrisisSystem : MonoBehaviour
         }
 
         bounds = hudBounds;
+        return true;
+    }
+
+    public bool TryGetOverlayPanelScreenBounds(out Rect bounds)
+    {
+        bounds = default;
+        if (!_overlayUiInitialized || !showOverlay || _overlayRoot == null || _overlayPanel == null)
+        {
+            return false;
+        }
+
+        if (_overlayRoot.resolvedStyle.display == DisplayStyle.None)
+        {
+            return false;
+        }
+
+        Rect panelBounds = _overlayPanel.worldBound;
+        if (panelBounds.width <= 1f || panelBounds.height <= 1f)
+        {
+            return false;
+        }
+
+        bounds = panelBounds;
         return true;
     }
 
@@ -1852,16 +2142,25 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        if (_initialized)
+        {
+            RebuildConnectivityCache();
+        }
+
         SetOverlayVisible(showOverlay);
         if (!showOverlay)
         {
             return;
         }
 
+        // Keep pressure text in sync with current crisis state, not only after turn ticks.
+        _lastComputedStabilityDrain = ComputeCurrentStabilityDrain();
+
         int criticalCount = CountCriticalCrises();
         int disconnectedVillages = CountDisconnectedVillagesFromCity();
         bool gateOpen = CanDeclareVictory();
         bool allowLongHints = showRuleHints && !_isMiniMode && !string.Equals(_activeScaleClass, "crisis-panel--compact", StringComparison.Ordinal);
+        string transientStatus = GetTimedStatusMessage();
         int selectedSeverity = -1;
 
         if (_activeCrises.Count > 0)
@@ -1904,7 +2203,7 @@ public class VillageCrisisSystem : MonoBehaviour
         if (_summaryLabel != null)
         {
             string severityText = selectedSeverity >= 0 ? $"{selectedSeverity}/100" : "-";
-            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count} | Critical {criticalCount} | Severity {severityText}";
+            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count}/{Mathf.Max(1, maxActiveCrises)} | Critical {criticalCount} | Severity {severityText}";
         }
 
         if (_gateLabel != null)
@@ -1935,8 +2234,9 @@ public class VillageCrisisSystem : MonoBehaviour
         if (_spawnRuleLabel != null)
         {
             string rule = allowLongHints
-                ? $"Drain now: -{_lastComputedStabilityDrain}/turn. CRITICAL can spread ({(spreadChance * 100f):0}%/turn). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s)."
-                : $"Drain: -{_lastComputedStabilityDrain}/turn. Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s).";
+                ? $"Health loss now: -{_lastComputedStabilityDrain}/turn from crises. If Health reaches 0, you lose. CRITICAL can spread ({(spreadChance * 100f):0}%/turn). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s)."
+                : $"Health loss: -{_lastComputedStabilityDrain}/turn (lose at 0). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s).";
+
             _spawnRuleLabel.text = rule;
         }
 
@@ -1961,7 +2261,7 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_actionCostLabel != null)
             {
-                _actionCostLabel.text = $"{responseActionCost} action";
+                _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
             }
 
             if (_typeEffectLabel != null)
@@ -1971,12 +2271,15 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_selectedHintLabel != null)
             {
-                _selectedHintLabel.text = "No active problem right now.";
+                _selectedHintLabel.text = string.IsNullOrWhiteSpace(transientStatus)
+                    ? "No active problem right now."
+                    : transientStatus;
             }
 
             if (_resolveHintLabel != null)
             {
                 _resolveHintLabel.text = "Connect villages to the city for bonus response power.";
+                _resolveHintLabel.RemoveFromClassList("crisis-text--critical");
             }
         }
         else
@@ -1986,7 +2289,25 @@ public class VillageCrisisSystem : MonoBehaviour
             int[] selectedCost = BuildResponseResourceCost(selected);
             bool selectedCritical = selected.severity >= criticalSeverityThreshold;
             bool selectedConnected = IsVillageConnectedToCity(selected.coordinate);
-            int responsePower = baseResponsePower + (selectedConnected ? extraResponsePowerWhenConnected : 0);
+            int woodIndex = (int)ResourceType.Wood;
+            int stoneIndex = (int)ResourceType.Stone;
+            int requiredWood = (selectedCost != null && woodIndex >= 0 && woodIndex < selectedCost.Length) ? selectedCost[woodIndex] : 0;
+            int requiredStone = (selectedCost != null && stoneIndex >= 0 && stoneIndex < selectedCost.Length) ? selectedCost[stoneIndex] : 0;
+            int currentWood = (turns != null && turns.CurrentResources != null && woodIndex >= 0 && woodIndex < turns.CurrentResources.Length)
+                ? turns.CurrentResources[woodIndex]
+                : 0;
+            int currentStone = (turns != null && turns.CurrentResources != null && stoneIndex >= 0 && stoneIndex < turns.CurrentResources.Length)
+                ? turns.CurrentResources[stoneIndex]
+                : 0;
+            bool lacksWood = turns != null && currentWood < requiredWood;
+            bool lacksStone = turns != null && currentStone < requiredStone;
+            bool canAffordSelectedCost = turns != null && turns.CanAffordResources(selectedCost);
+            bool hasEnoughActionsForResponse = turns != null
+                && turns.State == Turns.TurnState.PlayerTurn
+                && (responseActionCost <= 0 || (turns.CanTakeAction && turns.ActionsRemaining >= responseActionCost));
+            int responsePower = Mathf.Max(1, Mathf.RoundToInt(baseResponsePower * (selectedConnected ? 1f : disconnectedResponsePowerMultiplier)))
+                + (selectedConnected ? extraResponsePowerWhenConnected : 0);
+            int severityStage = GetSeverityStage(selected.severity);
 
             if (_selectedLabel != null)
             {
@@ -2004,37 +2325,91 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_typeEffectLabel != null)
             {
-                _typeEffectLabel.text = GetCrisisTypeEffectText(selected.type);
+                _typeEffectLabel.text = GetCrisisTypeEffectText(selected);
             }
 
             if (_woodCostLabel != null)
             {
-                _woodCostLabel.text = $"x{selectedCost[(int)ResourceType.Wood]}";
+                _woodCostLabel.text = $"x{requiredWood}";
+                if (lacksWood)
+                {
+                    _woodCostLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _woodCostLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
 
             if (_stoneCostLabel != null)
             {
-                _stoneCostLabel.text = $"x{selectedCost[(int)ResourceType.Stone]}";
+                _stoneCostLabel.text = $"x{requiredStone}";
+                if (lacksStone)
+                {
+                    _stoneCostLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _stoneCostLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
 
             if (_actionCostLabel != null)
             {
-                _actionCostLabel.text = $"{responseActionCost} action";
+                _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
+                if (!hasEnoughActionsForResponse)
+                {
+                    _actionCostLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _actionCostLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
 
             if (_selectedHintLabel != null)
             {
-                _selectedHintLabel.text = allowLongHints
-                    ? "Location: highlighted village."
-                    : string.Empty;
+                string stageText = severityStage switch
+                {
+                    3 => "CRITICAL",
+                    2 => "DANGER",
+                    1 => "WARNING",
+                    _ => "STABLE"
+                };
+
+                string baseHint = allowLongHints
+                    ? $"Location: highlighted village. Severity stage: {stageText}."
+                    : $"Severity stage: {stageText}.";
+
+                _selectedHintLabel.text = string.IsNullOrWhiteSpace(transientStatus)
+                    ? baseHint
+                    : $"{baseHint} {transientStatus}";
             }
 
             if (_resolveHintLabel != null)
             {
-                _resolveHintLabel.text =
-                    selectedConnected
-                        ? $"Connected to city: +{extraResponsePowerWhenConnected} response power. Respond now reduces severity by {responsePower}."
-                        : $"Connect this village to the city for +{extraResponsePowerWhenConnected} response power.";
+                if (!canAffordSelectedCost)
+                {
+                    _resolveHintLabel.text = "Not enough resources to respond.";
+                    _resolveHintLabel.AddToClassList("crisis-text--critical");
+                }
+                else if (!hasEnoughActionsForResponse)
+                {
+                    _resolveHintLabel.text = responseActionCost > 0
+                        ? $"Not enough actions to respond. Need {responseActionCost}."
+                        : "Cannot respond right now.";
+                    _resolveHintLabel.AddToClassList("crisis-text--critical");
+                }
+                else
+                {
+                    _resolveHintLabel.text =
+                        selectedConnected
+                            ? $"Connected: +{extraResponsePowerWhenConnected} response power and +{connectedResolveStabilityBonus} Health on resolve. Respond now lowers severity by {responsePower}."
+                            : disconnectedResolveFloor > 0
+                                ? $"Disconnected: response lowers severity by {responsePower}, but cannot resolve below {disconnectedResolveFloor}. Connect village to finish crisis."
+                                : $"Connect this village to the city for +{extraResponsePowerWhenConnected} response power.";
+                    _resolveHintLabel.RemoveFromClassList("crisis-text--critical");
+                }
             }
         }
 
@@ -2064,12 +2439,12 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (_collapseButton != null)
         {
-            _collapseButton.text = _isMiniMode ? "Show" : "Hide";
+            _collapseButton.text = _isMiniMode ? "▼" : "▲";
         }
 
         if (_pressureLabel != null)
         {
-            _pressureLabel.text = $"Current drain: -{_lastComputedStabilityDrain}/turn";
+            _pressureLabel.text = $"Health loss this turn: -{_lastComputedStabilityDrain} (you lose at 0 Health)";
         }
 
         if (compactOverlay)
@@ -2160,6 +2535,22 @@ public class VillageCrisisSystem : MonoBehaviour
             return;
         }
 
+        if (_overlayPanel != null)
+        {
+            if (_isMiniMode && _isPhonePortraitLayout)
+            {
+                _overlayPanel.style.minHeight = 0f;
+                _overlayPanel.style.height = StyleKeyword.Null;
+                _overlayPanel.style.maxHeight = StyleKeyword.Null;
+            }
+            else
+            {
+                _overlayPanel.style.minHeight = StyleKeyword.Null;
+                _overlayPanel.style.height = StyleKeyword.Null;
+                _overlayPanel.style.maxHeight = StyleKeyword.Null;
+            }
+        }
+
         bool showDetails = !_isMiniMode;
 
         if (_detailsTop != null)
@@ -2183,45 +2574,151 @@ public class VillageCrisisSystem : MonoBehaviour
         }
     }
 
-    private string GetCrisisTypeEffectText(VillageCrisisType type)
+    private string GetCrisisTypeEffectText(VillageCrisisState crisis)
     {
-        switch (type)
+        if (crisis == null)
+        {
+            return "Any active crisis drains health each turn.";
+        }
+
+        int stage = GetSeverityStage(crisis.severity);
+        switch (crisis.type)
         {
             case VillageCrisisType.Health:
-                return "Health: response cost rises at medium/high severity.";
+                return stage >= 2
+                    ? "Health: response costs are elevated at this severity and Health loss pressure is high."
+                    : "Health: response cost rises as severity climbs.";
             case VillageCrisisType.Infrastructure:
                 int infrastructureIncreasePercent = Mathf.RoundToInt((GetInfrastructureBuildCostMultiplier() - 1f) * 100f);
                 return infrastructureIncreasePercent > 0
                     ? $"Infrastructure: roads/buildings cost +{infrastructureIncreasePercent}% now."
                     : "Infrastructure: no extra road/building cost right now.";
             case VillageCrisisType.Cultural:
-                return "Cultural: usually the cheapest to respond to.";
+                return stage >= 2
+                    ? "Cultural: still cheaper than others, but prolonged neglect adds sustained map pressure."
+                    : "Cultural: usually the cheapest to respond to.";
             case VillageCrisisType.Nature:
-                return "Nature: tends to require more wood as severity rises.";
+                return stage >= 2
+                    ? "Nature: wood-heavy responses are now expensive."
+                    : "Nature: tends to require more wood as severity rises.";
             case VillageCrisisType.Social:
-                return "Social: high severity can add extra wood cost.";
+                return stage >= 2
+                    ? "Social: high severity adds stronger wood pressure and can snowball quickly."
+                    : "Social: high severity can add extra wood cost.";
             default:
                 return "Any active crisis drains health each turn.";
         }
     }
 
+    private int GetSeverityStage(int severity)
+    {
+        int clampedSeverity = Mathf.Clamp(severity, 0, 100);
+        int warningThreshold = Mathf.Clamp(Mathf.Min(warningSeverityThreshold, dangerSeverityThreshold - 1), 1, 99);
+        int dangerThreshold = Mathf.Clamp(Mathf.Max(dangerSeverityThreshold, warningThreshold + 1), 1, Mathf.Max(1, criticalSeverityThreshold - 1));
+
+        if (clampedSeverity >= criticalSeverityThreshold)
+        {
+            return 3;
+        }
+
+        if (clampedSeverity >= dangerThreshold)
+        {
+            return 2;
+        }
+
+        if (clampedSeverity >= warningThreshold)
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private string BuildSeverityMilestoneMessage(VillageCrisisState crisis, int stage)
+    {
+        if (crisis == null)
+        {
+            return string.Empty;
+        }
+
+        return crisis.type switch
+        {
+            VillageCrisisType.Infrastructure => stage switch
+            {
+                3 => "CRITICAL Infrastructure: building costs are heavily increased.",
+                2 => "Danger Infrastructure: construction costs are rising fast.",
+                _ => "Warning Infrastructure: build costs are starting to climb."
+            },
+            VillageCrisisType.Health => stage switch
+            {
+                3 => "CRITICAL Health: response costs and Health loss pressure are severe.",
+                2 => "Danger Health: response costs increased.",
+                _ => "Warning Health: prepare additional response resources."
+            },
+            VillageCrisisType.Nature => stage switch
+            {
+                3 => "CRITICAL Nature: wood-heavy containment required.",
+                2 => "Danger Nature: wood cost pressure is now high.",
+                _ => "Warning Nature: response wood demand increased."
+            },
+            VillageCrisisType.Social => stage switch
+            {
+                3 => "CRITICAL Social: crisis can destabilize quickly.",
+                2 => "Danger Social: resolve soon to avoid snowballing.",
+                _ => "Warning Social: pressure is increasing."
+            },
+            VillageCrisisType.Cultural => stage switch
+            {
+                3 => "CRITICAL Cultural: prolonged neglect is now dangerous.",
+                2 => "Danger Cultural: Health loss pressure is mounting.",
+                _ => "Warning Cultural: address before it escalates."
+            },
+            _ => "Crisis escalated to a new severity tier."
+        };
+    }
+
+    private string GetTimedStatusMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_responseStatusMessage))
+        {
+            return string.Empty;
+        }
+
+        if (responseStatusDuration <= 0f)
+        {
+            return _responseStatusMessage;
+        }
+
+        return Time.time - _responseStatusTimestamp <= responseStatusDuration
+            ? _responseStatusMessage
+            : string.Empty;
+    }
+
     private void ApplyDemoFriendlyBalancePreset()
     {
-        maxActiveCrises = Mathf.Clamp(maxActiveCrises, 1, 3);
-        baseSpawnChance = 0.24f;
-        guaranteedSpawnIntervalTurns = Mathf.Max(4, guaranteedSpawnIntervalTurns);
-        severityGainPerTurnMin = 2;
-        severityGainPerTurnMax = 6;
-        spreadChance = 0.06f;
-        criticalSeverityThreshold = Mathf.Max(90, criticalSeverityThreshold);
+        maxActiveCrises = Mathf.Clamp(maxActiveCrises, 3, 4);
+        baseSpawnChance = Mathf.Clamp(baseSpawnChance, 0.10f, 0.16f);
+        guaranteedSpawnIntervalTurns = Mathf.Clamp(guaranteedSpawnIntervalTurns, 5, 7);
+        severityGainPerTurnMin = Mathf.Clamp(severityGainPerTurnMin, 2, 3);
+        severityGainPerTurnMax = Mathf.Clamp(Mathf.Max(severityGainPerTurnMax, severityGainPerTurnMin + 1), 4, 6);
+        spreadChance = Mathf.Clamp(spreadChance, 0.02f, 0.035f);
+        criticalSeverityThreshold = Mathf.Clamp(criticalSeverityThreshold, 85, 92);
+        postResolveSpawnGraceTurns = Mathf.Clamp(postResolveSpawnGraceTurns, 2, 3);
+        postResolveSpreadGraceTurns = Mathf.Clamp(postResolveSpreadGraceTurns, 1, 2);
+        warningSeverityThreshold = Mathf.Clamp(warningSeverityThreshold, 45, 65);
+        dangerSeverityThreshold = Mathf.Clamp(dangerSeverityThreshold, 70, 85);
+        deterministicPerMapSeed = true;
 
         responseActionCost = Mathf.Max(1, responseActionCost);
         baseResponsePower = Mathf.Max(55, baseResponsePower);
         extraResponsePowerWhenConnected = Mathf.Max(25, extraResponsePowerWhenConnected);
+        disconnectedResponsePowerMultiplier = Mathf.Clamp(disconnectedResponsePowerMultiplier, 0.65f, 0.85f);
+        disconnectedResolveFloor = Mathf.Clamp(disconnectedResolveFloor, 16, 30);
+        connectedResolveStabilityBonus = Mathf.Max(4, connectedResolveStabilityBonus);
 
-        passiveStabilityDrain = Mathf.Clamp(passiveStabilityDrain, 0, 1);
-        criticalCrisisStabilityDrain = Mathf.Clamp(criticalCrisisStabilityDrain, 1, 3);
-        resolveStabilityReward = Mathf.Max(10, resolveStabilityReward);
+        passiveStabilityDrain = Mathf.Max(2, passiveStabilityDrain);
+        criticalCrisisStabilityDrain = Mathf.Max(5, criticalCrisisStabilityDrain);
+        resolveStabilityReward = Mathf.Clamp(resolveStabilityReward, 6, 9);
         stabilityTurnPenaltyOnCritical = 0;
     }
 }

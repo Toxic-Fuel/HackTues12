@@ -158,6 +158,7 @@ GameObject:
   - component: {fileID: 6856746679623280001}
   - component: {fileID: 44438035327172126}
   - component: {fileID: 4751391204138697842}
+  - component: {fileID: 1234567890123456789}
   m_Layer: 5
   m_Name: CanvasHelp
   m_TagString: Untagged
@@ -249,3 +250,22 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &1234567890123456789
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3294361060143998628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7a5adb3c65784f4793d41ab94034f41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BottomQuickButtonsPortraitShift
+  donationButton: {fileID: 0}
+  settingsButton: {fileID: 0}
+  endgameButton: {fileID: 0}
+  shiftButtonsOnPortrait: 1
+  portraitMaxScreenWidthPixels: 1300
+  portraitLeftShiftPixels: 32
+  includeSafeAreaLeftShift: 1

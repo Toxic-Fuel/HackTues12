@@ -20,11 +20,13 @@
                     <ui:Label name="HighscoreText" text="Highscore: 0" class="stat-text"/>
                     <ui:Label name="SpeedRatingText" text="Speed rating: 0%" class="stat-text"/>
                     <ui:Label name="DifficultyText" text="Difficulty rating: 60%" class="stat-text"/>
+                    <ui:Label name="SeedText" text="Seed: N/A" class="stat-text"/>
                 </ui:VisualElement>
 
                 <ui:VisualElement name="ButtonsColumn" class="buttons-column">
                     <ui:Button name="ViewMapButton" text="View Map" class="endgame-button"/>
-                    <ui:Button name="PlayAgainButton" text="Play again" class="endgame-button"/>
+                    <ui:Button name="PlayAgainButton" text="Play again (same seed)" class="endgame-button"/>
+                    <ui:Button name="PlayAgainNewSeedButton" text="Play again (new seed)" class="endgame-button"/>
                     <ui:Button name="QuitButton" text="Quit" class="endgame-button"/>
                 </ui:VisualElement>
             </ui:VisualElement>
