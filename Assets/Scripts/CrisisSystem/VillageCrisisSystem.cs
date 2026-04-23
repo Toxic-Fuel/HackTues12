@@ -82,7 +82,7 @@ public class VillageCrisisSystem : MonoBehaviour
     [SerializeField, Min(0.1f)] private float textureMarkerWorldSize = 1.2f;
     [SerializeField] private int textureMarkerSortingOrder = 25;
     [SerializeField] private Vector3 markerOffset = new Vector3(0f, 1.7f, 0f);
-    [SerializeField, Min(0.01f)] private float prefabMarkerScaleMultiplier = 0.20f;
+    [SerializeField, Min(0.01f)] private float prefabMarkerScaleMultiplier = 0.25f;
     [SerializeField] private bool pulseMarkers = true;
     [SerializeField, Min(0.1f)] private float markerPulseSpeed = 3f;
     [SerializeField, Range(0f, 0.4f)] private float markerPulseAmplitude = 0.12f;

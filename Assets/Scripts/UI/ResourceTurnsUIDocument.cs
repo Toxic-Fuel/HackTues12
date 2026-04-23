@@ -20,7 +20,9 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     [SerializeField, Range(0.4f, 1f)] private float portraitScaleMultiplier = 0.7f;
     [SerializeField, Range(0.3f, 1f)] private float portraitMinEffectiveScale = 0.55f;
     [SerializeField, Range(0.3f, 1f)] private float portraitMaxEffectiveScale = 0.7f;
-    [SerializeField, Min(0f)] private float portraitTopInsetPixels = 20f;
+    [SerializeField, Min(0f)] private float portraitTopInsetPixels = 30f;
+    [SerializeField, Min(0f)] private float portraitLeftInsetPixels = 24f;
+    [SerializeField] private bool includeSafeAreaLeftInsetOnPortrait = true;
 
     [Header("Label Names")]
     [SerializeField] private string turnsLabelName = "turns-value";
@@ -155,6 +157,7 @@ public class ResourceTurnsUIDocument : MonoBehaviour
             portraitMaxEffectiveScale = portraitMinEffectiveScale;
         }
         portraitTopInsetPixels = Mathf.Max(0f, portraitTopInsetPixels);
+        portraitLeftInsetPixels = Mathf.Max(0f, portraitLeftInsetPixels);
 
         if (!Application.isPlaying)
         {
@@ -201,8 +204,18 @@ public class ResourceTurnsUIDocument : MonoBehaviour
             effectiveScale = Mathf.Clamp(effectiveScale, minScale, maxScale);
         }
 
+        float leftInset = 0f;
+        if (isPortraitPhoneScreen)
+        {
+            leftInset = portraitLeftInsetPixels;
+            if (includeSafeAreaLeftInsetOnPortrait)
+            {
+                leftInset += Mathf.Max(0f, Screen.safeArea.xMin);
+            }
+        }
+
         hudRoot.style.position = Position.Absolute;
-        hudRoot.style.left = 0f;
+        hudRoot.style.left = leftInset;
         hudRoot.style.top = isPortraitPhoneScreen ? portraitTopInsetPixels : 0f;
         hudRoot.style.transformOrigin = new TransformOrigin(
             new Length(0f, LengthUnit.Percent),

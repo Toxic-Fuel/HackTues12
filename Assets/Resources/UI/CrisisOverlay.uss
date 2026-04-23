@@ -208,8 +208,8 @@
 
 .crisis-button {
     flex-grow: 1;
-    min-height: 37px;
-    font-size: 27px;
+    min-height: 42px;
+    font-size: 31px;
     -unity-font-style: normal;
     color: rgb(29, 35, 22);
     background-color: rgb(181, 191, 136);
@@ -275,8 +275,8 @@
 }
 
 .crisis-panel--compact .crisis-button {
-    min-height: 34px;
-    font-size: 25px;
+    min-height: 37px;
+    font-size: 28px;
 }
 
 .crisis-panel--large .crisis-title {
@@ -307,8 +307,8 @@
 }
 
 .crisis-panel--large .crisis-button {
-    min-height: 40px;
-    font-size: 27px;
+    min-height: 44px;
+    font-size: 32px;
 }
 
 .crisis-panel--phone-portrait {
@@ -381,8 +381,8 @@
 
 .crisis-panel--phone-portrait .crisis-button {
     min-width: 0;
-    min-height: 22px;
-    font-size: 11px;
-    padding-left: 3px;
-    padding-right: 3px;
+    min-height: 28px;
+    font-size: 16px;
+    padding-left: 4px;
+    padding-right: 4px;
 }
