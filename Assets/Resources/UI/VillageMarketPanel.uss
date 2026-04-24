@@ -13,8 +13,6 @@
 
 .market-panel {
     position: absolute;
-    right: 16px;
-    bottom: 16px;
 
     width: 460px;
     max-width: 92%;
@@ -22,8 +20,6 @@
     padding-right: 14px;
     padding-top: 14px;
     padding-bottom: 14px;
-
-    transform-origin: 100% 100%;
 
     border-top-width: 2px;
     border-right-width: 2px;

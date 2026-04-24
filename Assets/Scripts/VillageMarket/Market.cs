@@ -55,7 +55,9 @@ public class Market : MonoBehaviour
     private const int GivePerReceiveRatio = 2;
 
     private Vector2Int marketSelectionCoordinate = new Vector2Int(-1, -1);
-
+    [SerializeField] private Camera worldCamera;
+    [SerializeField, Min(0f)] private float panelVerticalOffsetPixels = 36f;
+    [SerializeField, Min(0f)] private float panelScreenEdgePadding = 12f;
     private void Awake()
     {
         OnButtonClicked ??= new UnityEvent();
@@ -150,6 +152,7 @@ public class Market : MonoBehaviour
         }
 
         RefreshTradeState();
+        UpdateMarketPanelPosition(selectedCoordinate);
     }
 
     private void EnsureUiInitialized()
@@ -675,5 +678,89 @@ public class Market : MonoBehaviour
         }
 
         return 1;
+    }
+
+    private bool TryResolveWorldCamera()
+    {
+        if (worldCamera != null && worldCamera.isActiveAndEnabled)
+        {
+            return true;
+        }
+
+        if (Camera.main != null && Camera.main.isActiveAndEnabled)
+        {
+            worldCamera = Camera.main;
+            return true;
+        }
+
+        Camera[] cameras = FindObjectsByType<Camera>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            if (cameras[i] != null && cameras[i].isActiveAndEnabled)
+            {
+                worldCamera = cameras[i];
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void UpdateMarketPanelPosition(Vector2Int coordinate)
+    {
+        if (marketPanel == null || marketRoot == null || gridMap == null)
+        {
+            return;
+        }
+
+        if (coordinate.x < 0 || coordinate.y < 0)
+        {
+            return;
+        }
+
+        if (!TryResolveWorldCamera())
+        {
+            return;
+        }
+
+        GameObject tileInstance = gridMap.GetTileInstanceAt(coordinate.x, coordinate.y);
+        if (tileInstance == null)
+        {
+            return;
+        }
+
+        Vector3 screenPoint = worldCamera.WorldToScreenPoint(tileInstance.transform.position);
+        if (screenPoint.z <= 0f || marketPanel.panel == null)
+        {
+            return;
+        }
+
+        // Convert world/screen position to UI Toolkit panel coordinates.
+        Vector2 screenPos = new Vector2(screenPoint.x, screenPoint.y);
+        screenPos.y = Screen.height - screenPos.y;
+        Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(marketPanel.panel, screenPos);
+
+        float panelWidth = marketPanel.resolvedStyle.width > 1f ? marketPanel.resolvedStyle.width : 460f;
+        float panelHeight = marketPanel.resolvedStyle.height > 1f ? marketPanel.resolvedStyle.height : 280f;
+
+        float rootWidth = marketRoot.resolvedStyle.width > 1f ? marketRoot.resolvedStyle.width : Screen.width;
+        float rootHeight = marketRoot.resolvedStyle.height > 1f ? marketRoot.resolvedStyle.height : Screen.height;
+
+        float targetLeft = panelPos.x - panelWidth * 0.5f;
+        float targetTop = panelPos.y - panelVerticalOffsetPixels - panelHeight;
+
+        float minLeft = panelScreenEdgePadding;
+        float maxLeft = Mathf.Max(minLeft, rootWidth - panelWidth - panelScreenEdgePadding);
+        float minTop = panelScreenEdgePadding;
+        float maxTop = Mathf.Max(minTop, rootHeight - panelHeight - panelScreenEdgePadding);
+
+        targetLeft = Mathf.Clamp(targetLeft, minLeft, maxLeft);
+        targetTop = Mathf.Clamp(targetTop, minTop, maxTop);
+
+        marketPanel.style.position = Position.Absolute;
+        marketPanel.style.right = StyleKeyword.Null;
+        marketPanel.style.bottom = StyleKeyword.Null;
+        marketPanel.style.left = targetLeft;
+        marketPanel.style.top = targetTop;
     }
 }
