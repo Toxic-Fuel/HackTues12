@@ -3,6 +3,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using UnityEngine.Events;
 
 public class InGameGenerationMenu : MonoBehaviour
 {
@@ -47,6 +48,9 @@ public class InGameGenerationMenu : MonoBehaviour
     [SerializeField, Range(0f, 0.5f)] private float floatingButtonToggleCooldown = 0.2f;
     [SerializeField] private bool autoFindGridMap = true;
     [SerializeField] private bool autoApplyPendingChangesWhenGridMapAppears = true;
+
+    [Header("Button Events")]
+    [SerializeField] private UnityEvent OnButtonClicked;
 
     [Header("UI Scale")]
     [SerializeField] private bool scaleWithScreenShortSide = true;
@@ -132,6 +136,7 @@ public class InGameGenerationMenu : MonoBehaviour
 
     private void Awake()
     {
+        OnButtonClicked ??= new UnityEvent();
         if (persistAcrossScenes)
         {
             if (instance != null && instance != this)
@@ -641,6 +646,8 @@ public class InGameGenerationMenu : MonoBehaviour
                 SyncControlsFromState();
             }
         }
+
+        OnButtonClicked?.Invoke();
     }
 
     private void HandleCloseButtonClicked()
@@ -648,6 +655,7 @@ public class InGameGenerationMenu : MonoBehaviour
         AnimateButtonPress(closeTopButton);
         AnimateButtonPress(closeBottomButton);
         SetMenuOpenState(false);
+        OnButtonClicked?.Invoke();
     }
 
     private void HandlePresetClicked(DifficultyPreset preset)
@@ -670,6 +678,7 @@ public class InGameGenerationMenu : MonoBehaviour
 
         ApplyPreset(preset);
         SyncControlsFromState();
+        OnButtonClicked?.Invoke();
     }
 
     private void HandleApplyClicked()
@@ -690,6 +699,8 @@ public class InGameGenerationMenu : MonoBehaviour
             CacheCurrentSettingsForPendingApply(regenerateWhenApplyingPendingChanges);
             pendingApplyWithoutGridMap = true;
         }
+
+        OnButtonClicked?.Invoke();
     }
 
     private void HandleApplySeedClicked()
@@ -715,6 +726,8 @@ public class InGameGenerationMenu : MonoBehaviour
             CacheCurrentSettingsForPendingApply(true);
             pendingApplyWithoutGridMap = true;
         }
+
+        OnButtonClicked?.Invoke();
     }
 
     private void ToggleMenu()

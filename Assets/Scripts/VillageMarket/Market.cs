@@ -1,5 +1,6 @@
 using GridGeneration;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UIElements;
 
 public class Market : MonoBehaviour
@@ -23,6 +24,9 @@ public class Market : MonoBehaviour
     [SerializeField] private VisualTreeAsset marketLayoutAsset;
     [SerializeField] private StyleSheet marketStyleSheet;
     [SerializeField] private int sortingOrder = 400;
+
+    [Header("Button Events")]
+    [SerializeField] private UnityEvent OnButtonClicked;
 
     private const string SlotWoodClass = "material-slot-button--wood";
     private const string SlotStoneClass = "material-slot-button--stone";
@@ -54,6 +58,7 @@ public class Market : MonoBehaviour
 
     private void Awake()
     {
+        OnButtonClicked ??= new UnityEvent();
         if (selectTile == null)
         {
             selectTile = FindAnyObjectByType<SelectTile>();
@@ -293,6 +298,8 @@ public class Market : MonoBehaviour
         {
             leftSlotMenu.style.display = DisplayStyle.Flex;
         }
+
+        OnButtonClicked?.Invoke();
     }
 
     private void ToggleRightSlotMenu()
@@ -303,6 +310,8 @@ public class Market : MonoBehaviour
         {
             rightSlotMenu.style.display = DisplayStyle.Flex;
         }
+
+        OnButtonClicked?.Invoke();
     }
 
     private void CloseSlotMenus()
@@ -377,6 +386,7 @@ public class Market : MonoBehaviour
         rightSlotMaterial = GetOppositeMaterial(leftMaterial);
         UpdateSlotTexts();
         RefreshTradeState();
+        OnButtonClicked?.Invoke();
     }
 
     private void SetSlotsFromRight(SlotMaterial rightMaterial)
@@ -385,6 +395,7 @@ public class Market : MonoBehaviour
         leftSlotMaterial = GetOppositeMaterial(rightMaterial);
         UpdateSlotTexts();
         RefreshTradeState();
+        OnButtonClicked?.Invoke();
     }
 
     private static SlotMaterial GetOppositeMaterial(SlotMaterial material)
@@ -537,6 +548,7 @@ public class Market : MonoBehaviour
         turns.CurrentResources = resources;
 
         RefreshTradeState();
+        OnButtonClicked?.Invoke();
     }
 
     private static int MaterialToResourceIndex(SlotMaterial material)
@@ -592,6 +604,7 @@ public class Market : MonoBehaviour
         SetMarketVisible(false);
         wasMarketVisible = false;
         marketSelectionCoordinate = new Vector2Int(-1, -1);
+        OnButtonClicked?.Invoke();
     }
 
     private bool IsVillageConnectedToRoadNetwork(Vector2Int coordinate)

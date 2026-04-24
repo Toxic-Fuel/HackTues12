@@ -7,7 +7,9 @@ namespace ScoreSystem
     {
         Default,
         Time,
-        Buildings
+        Buildings,
+        Crisis,
+        Quest
     }
 
     public class LevelScore : MonoBehaviour
@@ -66,6 +68,8 @@ namespace ScoreSystem
         public void AddDefaultScore(float value) => AddToScore(value, ScoreType.Default);
         public void AddTimeScore(float value) => AddToScore(value, ScoreType.Time);
         public void AddBuildingScore(float value) => AddToScore(value, ScoreType.Buildings);
+        public void AddCrisisScore(float value) => AddToScore(value, ScoreType.Crisis);
+        public void AddQuestScore(float value) => AddToScore(value, ScoreType.Quest);
 
         public void CalculateEndScore()
         {

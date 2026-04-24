@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using UnityEngine.Events;
 using ScoreSystem;
 using GridGeneration;
 
@@ -15,6 +16,9 @@ namespace UI
         [Header("References")]
         [SerializeField] private UIDocument endGameDocument;
         [SerializeField] private StyleSheet endGameStyleSheet;
+
+        [Header("Button Events")]
+        [SerializeField] private UnityEvent OnButtonClicked;
 
         [Header("Scene Actions")]
         [SerializeField] private string mainMenuSceneName = "MainMenu";
@@ -70,6 +74,7 @@ namespace UI
 
         private void Awake()
         {
+            OnButtonClicked ??= new UnityEvent();
             if (endGameDocument == null)
             {
                 endGameDocument = GetComponent<UIDocument>();
@@ -431,16 +436,19 @@ namespace UI
 
         private void OnViewMapClicked()
         {
+            OnButtonClicked?.Invoke();
             Hide();
         }
 
         private void OnCloseSummaryClicked()
         {
+            OnButtonClicked?.Invoke();
             Hide();
         }
 
         public void OnReopenEndScreenClicked()
         {
+            OnButtonClicked?.Invoke();
             if (_hasFinalSummary)
             {
                 Show(_lastResultText, _lastScore, _lastHighscore, _lastSpeedRatingPercent, _lastDifficultyPercent);
@@ -475,6 +483,7 @@ namespace UI
 
         private void OnPlayAgainClicked()
         {
+            OnButtonClicked?.Invoke();
             if (gridMap == null)
             {
                 gridMap = FindAnyObjectByType<GridMap>();
@@ -493,6 +502,7 @@ namespace UI
 
         private void OnPlayAgainNewSeedClicked()
         {
+            OnButtonClicked?.Invoke();
             int newSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
             RandomSeed.ForceSeedForNextLoad(newSeed);
             InGameGenerationMenu.QueueCurrentSettingsForNextGridMapWithSeed(newSeed);
@@ -503,6 +513,7 @@ namespace UI
 
         private void OnQuitClicked()
         {
+            OnButtonClicked?.Invoke();
             if (!Application.CanStreamedLevelBeLoaded(mainMenuSceneName))
             {
                 Debug.LogError($"EndGameScreenController: Scene '{mainMenuSceneName}' is not in Build Profiles / shared scene list.", this);
@@ -602,6 +613,4 @@ namespace UI
         }
     }
 }
-
-
 

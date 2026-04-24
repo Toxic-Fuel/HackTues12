@@ -49,6 +49,9 @@ namespace GridGeneration
         [SerializeField, Min(0.1f)] private float cityStartMarkerScale = 0.8f;
         [SerializeField] private Color cityStartMarkerColor = new Color(1f, 0.85f, 0.2f, 0.95f);
         [SerializeField, Min(0)] private int cityStartMarkerSortingOrder = 70;
+        [SerializeField] private bool pulseCityStartMarker = true;
+        [SerializeField, Min(0.1f)] private float cityStartMarkerPulseSpeed = 3f;
+        [SerializeField, Range(0f, 0.4f)] private float cityStartMarkerPulseAmplitude = 0.12f;
         [SerializeField] public int seed;
         [SerializeField, Range(0f, 1f)] private float obstaclePercent = 0.30f;
         [SerializeField, Min(0.001f)] private float obstacleNoiseScale = 0.2f;
@@ -79,6 +82,7 @@ namespace GridGeneration
         private float[] nonGrassVariantThresholds;
         private GameObject cityStartMarkerInstance;
         private int cityStartMarkerTurnsRemaining;
+        private Vector3 cityStartMarkerBaseScale = Vector3.one;
         [SerializeField] private Turns turns;
         private bool isTurnEventsBound;
 
@@ -169,6 +173,15 @@ namespace GridGeneration
         private void OnDisable()
         {
             UnbindTurnEvents();
+        }
+
+        private void Update()
+        {
+            if (pulseCityStartMarker && cityStartMarkerInstance != null)
+            {
+                float pulse = 1f + Mathf.Sin(Time.time * cityStartMarkerPulseSpeed) * cityStartMarkerPulseAmplitude;
+                cityStartMarkerInstance.transform.localScale = cityStartMarkerBaseScale * pulse;
+            }
         }
 
         private void OnValidate()
@@ -680,6 +693,8 @@ namespace GridGeneration
             cityStartMarkerInstance = new GameObject("CityStartMarker");
             cityStartMarkerInstance.transform.SetParent(transform);
             cityStartMarkerInstance.transform.position = markerPosition;
+            cityStartMarkerBaseScale = Vector3.one * Mathf.Max(0.1f, cityStartMarkerScale);
+            cityStartMarkerInstance.transform.localScale = cityStartMarkerBaseScale;
             LookAtCamera lookAtCamera = cityStartMarkerInstance.AddComponent<LookAtCamera>();
             lookAtCamera.InvertForward = true;
 
@@ -761,6 +776,8 @@ namespace GridGeneration
             }
 
             cityStartMarkerInstance = null;
+            cityStartMarkerTurnsRemaining = 0;
+            cityStartMarkerBaseScale = Vector3.one;
         }
 
         private void BindTurnEvents()
@@ -1637,6 +1654,7 @@ namespace GridGeneration
             protectedTileMap = null;
             cityStartMarkerInstance = null;
             cityStartMarkerTurnsRemaining = 0;
+            cityStartMarkerBaseScale = Vector3.one;
         }
     }
 }
