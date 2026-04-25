@@ -7,6 +7,7 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     [Header("References")]
     [SerializeField] private UIDocument uiDocument;
     [SerializeField] private Turns turns;
+    [SerializeField] private VillageCrisisSystem crisisSystem;
 
     [Header("Button Events")]
     [SerializeField] private UnityEvent OnButtonClicked;
@@ -33,6 +34,11 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     [SerializeField] private string[] currentResourceLabelNames;
     [SerializeField] private string[] perTurnResourceLabelNames;
 
+    [Header("Health Bar")]
+    [SerializeField] private string healthBarName = "health-bar";
+    [SerializeField] private string healthBarFillName = "health-bar-fill";
+    [SerializeField] private string healthCountLabelName = "health-count";
+
     [Header("Control Names")]
     [SerializeField] private string skipTurnButtonName = "skip-turn-button";
 
@@ -40,6 +46,9 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     private Label[] currentResourceLabels;
     private Label[] perTurnResourceLabels;
     private Button skipTurnButton;
+    private VisualElement healthBar;
+    private VisualElement healthBarFill;
+    private Label healthCountLabel;
     private VisualElement hudRoot;
     private int cachedScreenWidth = -1;
     private int cachedScreenHeight = -1;
@@ -53,8 +62,11 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     private void OnEnable()
     {
         CacheElements();
+        EnsureCrisisSystemReference();
+        SubscribeToCrisisSystem();
         ApplyPanelScale(force: true);
         BindControls();
+        UpdateHealthBar();
     }
 
     private void Update()
@@ -75,6 +87,7 @@ public class ResourceTurnsUIDocument : MonoBehaviour
     private void OnDisable()
     {
         UnbindControls();
+        UnsubscribeFromCrisisSystem();
     }
 
     public void UpdateTexts(int[] currentResources, int[] resourcesPerTurn, int remainingTurns)
@@ -119,6 +132,29 @@ public class ResourceTurnsUIDocument : MonoBehaviour
                 perTurnResourceLabels[i].text = $"+{resourcesPerTurn[i]}/t";
             }
         }
+
+        UpdateHealthBar();
+    }
+
+    private void UpdateHealthBar()
+    {
+        if (healthBar == null || healthBarFill == null)
+        {
+            CacheElements();
+        }
+
+        if (healthBar == null || healthBarFill == null)
+        {
+            return;
+        }
+
+        int currentHealth = crisisSystem != null ? Mathf.Clamp(crisisSystem.Stability, 0, 100) : 0;
+        if (healthCountLabel != null)
+        {
+            healthCountLabel.text = $"{currentHealth}/100";
+        }
+
+        healthBarFill.style.width = Length.Percent(currentHealth);
     }
 
     private void CacheElements()
@@ -143,7 +179,44 @@ public class ResourceTurnsUIDocument : MonoBehaviour
         currentResourceLabels = ResolveLabels(root, currentResourceLabelNames);
         perTurnResourceLabels = ResolveLabels(root, perTurnResourceLabelNames);
         skipTurnButton = string.IsNullOrWhiteSpace(skipTurnButtonName) ? null : root.Q<Button>(skipTurnButtonName);
+        healthBar = string.IsNullOrWhiteSpace(healthBarName) ? null : root.Q<VisualElement>(healthBarName);
+        healthBarFill = string.IsNullOrWhiteSpace(healthBarFillName) ? null : root.Q<VisualElement>(healthBarFillName);
+        healthCountLabel = string.IsNullOrWhiteSpace(healthCountLabelName) ? null : root.Q<Label>(healthCountLabelName);
         hudRoot = string.IsNullOrWhiteSpace(hudRootName) ? root : root.Q<VisualElement>(hudRootName) ?? root;
+    }
+
+    private void EnsureCrisisSystemReference()
+    {
+        if (crisisSystem == null)
+        {
+            crisisSystem = FindAnyObjectByType<VillageCrisisSystem>();
+        }
+    }
+
+    private void SubscribeToCrisisSystem()
+    {
+        if (crisisSystem == null)
+        {
+            return;
+        }
+
+        crisisSystem.CrisisStateChanged -= OnCrisisStateChanged;
+        crisisSystem.CrisisStateChanged += OnCrisisStateChanged;
+    }
+
+    private void UnsubscribeFromCrisisSystem()
+    {
+        if (crisisSystem == null)
+        {
+            return;
+        }
+
+        crisisSystem.CrisisStateChanged -= OnCrisisStateChanged;
+    }
+
+    private void OnCrisisStateChanged(VillageCrisisSystem _)
+    {
+        UpdateHealthBar();
     }
 
     private void OnValidate()

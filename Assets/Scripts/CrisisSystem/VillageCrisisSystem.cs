@@ -388,15 +388,61 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (woodIndex >= 0 && woodIndex < adjustedCost.Length && adjustedCost[woodIndex] > 0)
         {
-            adjustedCost[woodIndex] = Mathf.CeilToInt(adjustedCost[woodIndex] * multiplier);
+            int bonusWood = Mathf.Max(0, Mathf.RoundToInt(adjustedCost[woodIndex] * (multiplier - 1f)));
+            adjustedCost[woodIndex] += bonusWood;
         }
 
         if (stoneIndex >= 0 && stoneIndex < adjustedCost.Length && adjustedCost[stoneIndex] > 0)
         {
-            adjustedCost[stoneIndex] = Mathf.CeilToInt(adjustedCost[stoneIndex] * multiplier);
+            int bonusStone = Mathf.Max(0, Mathf.RoundToInt(adjustedCost[stoneIndex] * (multiplier - 1f)));
+            adjustedCost[stoneIndex] += bonusStone;
         }
 
         return adjustedCost;
+    }
+
+    public bool TryGetSelectedCrisisResponseCostBreakdown(out int[] baseCost, out int[] bonusCost, out int[] totalCost)
+    {
+        baseCost = Array.Empty<int>();
+        bonusCost = Array.Empty<int>();
+        totalCost = Array.Empty<int>();
+
+        if (_activeCrises.Count == 0)
+        {
+            return false;
+        }
+
+        int selectedIndex = Mathf.Clamp(_selectedCrisisIndex, 0, _activeCrises.Count - 1);
+        VillageCrisisState selected = _activeCrises[selectedIndex];
+        if (selected == null || !selected.isActive)
+        {
+            return false;
+        }
+
+        totalCost = BuildResponseResourceCost(selected);
+        int resourceCount = totalCost != null ? totalCost.Length : 0;
+        baseCost = new int[resourceCount];
+        bonusCost = new int[resourceCount];
+
+        int woodIndex = (int)ResourceType.Wood;
+        int stoneIndex = (int)ResourceType.Stone;
+
+        if (woodIndex >= 0 && woodIndex < resourceCount)
+        {
+            baseCost[woodIndex] = 1;
+        }
+
+        if (stoneIndex >= 0 && stoneIndex < resourceCount)
+        {
+            baseCost[stoneIndex] = 1;
+        }
+
+        for (int i = 0; i < resourceCount; i++)
+        {
+            bonusCost[i] = Mathf.Max(0, totalCost[i] - baseCost[i]);
+        }
+
+        return true;
     }
 
     public bool TryRespondToSelectedCrisis()
@@ -421,31 +467,10 @@ public class VillageCrisisSystem : MonoBehaviour
             return false;
         }
 
-        if (turns.State != Turns.TurnState.PlayerTurn)
-        {
-            SetResponseStatus("You can respond only during your turn.");
-            RefreshOverlayText();
-            return false;
-        }
-
-        if (responseActionCost > 0 && (!turns.CanTakeAction || turns.ActionsRemaining < responseActionCost))
-        {
-            SetResponseStatus($"Not enough actions. Need {responseActionCost}.");
-            RefreshOverlayText();
-            return false;
-        }
-
         int[] cost = BuildResponseResourceCost(crisis);
         if (!turns.CanAffordResources(cost))
         {
             SetResponseStatus($"Not enough resources. Need W:{cost[(int)ResourceType.Wood]} S:{cost[(int)ResourceType.Stone]}.");
-            RefreshOverlayText();
-            return false;
-        }
-
-        if (responseActionCost > 0 && !turns.TrySpendAction(responseActionCost))
-        {
-            SetResponseStatus("Could not spend action point.");
             RefreshOverlayText();
             return false;
         }
@@ -481,7 +506,6 @@ public class VillageCrisisSystem : MonoBehaviour
         }
         else if (!connectedAtResponse && disconnectedResolveFloor > 0 && crisis.severity <= disconnectedResolveFloor)
         {
-            SetResponseStatus($"Crisis contained at {crisis.severity}. Connect village to city to fully resolve.");
             UpdateMarkerVisual(crisis);
         }
         else
@@ -585,7 +609,7 @@ public class VillageCrisisSystem : MonoBehaviour
         _spreadGraceTurnsRemaining = 0;
         _lastComputedStabilityDrain = 0;
         InitializeCrisisRng();
-        SetResponseStatus("Crisis system initialized.");
+        SetResponseStatus(string.Empty);
         _initialized = _allVillages.Count > 0;
 
         if (_initialized)
@@ -707,7 +731,8 @@ public class VillageCrisisSystem : MonoBehaviour
                 continue;
             }
 
-            if (NextRandomValue01() > spreadChance)
+            float effectiveSpreadChance = Mathf.Clamp01(spreadChance + GetExtraSpreadChance(source));
+            if (NextRandomValue01() > effectiveSpreadChance)
             {
                 continue;
             }
@@ -779,6 +804,7 @@ public class VillageCrisisSystem : MonoBehaviour
     {
         int criticalCount = 0;
         int severityPressureBonus = 0;
+        int typeSpecificDrainBonus = 0;
 
         for (int i = 0; i < _activeCrises.Count; i++)
         {
@@ -799,12 +825,15 @@ public class VillageCrisisSystem : MonoBehaviour
                 severityPressureBonus += 1;
                 criticalCount++;
             }
+
+            typeSpecificDrainBonus += GetTypeSpecificDrainBonus(crisis, severityStage);
         }
 
         int drain = passiveStabilityDrain
             + _activeCrises.Count
             + criticalCount * criticalCrisisStabilityDrain
-            + severityPressureBonus;
+            + severityPressureBonus
+            + typeSpecificDrainBonus;
         return Mathf.Max(0, drain);
     }
 
@@ -1129,7 +1158,7 @@ public class VillageCrisisSystem : MonoBehaviour
         int resourceCount = turns != null ? Mathf.Max(3, turns.resourceTypesCount) : 3;
         int[] cost = new int[resourceCount];
 
-        int severityBand = Mathf.Clamp(Mathf.CeilToInt(crisis.severity / 40f), 1, 3);
+        int severityStage = GetSeverityStage(crisis.severity);
         bool connected = IsVillageConnectedToCity(crisis.coordinate);
         int connectivityPenalty = (!connected && crisis.severity >= criticalSeverityThreshold) ? 1 : 0;
 
@@ -1139,30 +1168,38 @@ public class VillageCrisisSystem : MonoBehaviour
         switch (crisis.type)
         {
             case VillageCrisisType.Infrastructure:
-                stoneCost += Mathf.Max(0, severityBand - 1);
+                stoneCost += severityStage;
                 break;
             case VillageCrisisType.Nature:
-                woodCost += Mathf.Max(0, severityBand - 1);
+                woodCost += severityStage;
+                if (severityStage >= 2)
+                {
+                    woodCost += 1;
+                }
                 break;
             case VillageCrisisType.Cultural:
-                // Cultural crises are intentionally cheaper so players can stabilize quickly.
+                // Cultural crises stay cheap to respond to, but create stronger passive pressure.
+                if (severityStage >= 3)
+                {
+                    woodCost += 1;
+                }
                 break;
             case VillageCrisisType.Social:
-                woodCost += severityBand >= 3 ? 1 : 0;
+                woodCost += Mathf.Min(2, severityStage);
+                if (severityStage >= 3)
+                {
+                    stoneCost += 1;
+                }
                 break;
             case VillageCrisisType.Health:
-                if (severityBand >= 2)
+                woodCost += severityStage;
+                stoneCost += severityStage;
+                if (severityStage >= 3)
                 {
                     woodCost += 1;
                     stoneCost += 1;
                 }
                 break;
-        }
-
-        if (severityBand >= 3)
-        {
-            woodCost += 1;
-            stoneCost += 1;
         }
 
         cost[(int)ResourceType.Wood] = Mathf.Max(1, woodCost + connectivityPenalty);
@@ -1505,7 +1542,7 @@ public class VillageCrisisSystem : MonoBehaviour
 
     private void SetResponseStatus(string message)
     {
-        _responseStatusMessage = string.IsNullOrWhiteSpace(message) ? "-" : message;
+        _responseStatusMessage = string.IsNullOrWhiteSpace(message) ? string.Empty : message;
         _responseStatusTimestamp = Time.time;
     }
 
@@ -2208,7 +2245,7 @@ public class VillageCrisisSystem : MonoBehaviour
         if (_summaryLabel != null)
         {
             string severityText = selectedSeverity >= 0 ? $"{selectedSeverity}/100" : "-";
-            _summaryLabel.text = $"Health {_stability}/100 | Problems {_activeCrises.Count}/{Mathf.Max(1, maxActiveCrises)} | Critical {criticalCount} | Severity {severityText}";
+            _summaryLabel.text = $"Problems {_activeCrises.Count}/{Mathf.Max(1, maxActiveCrises)} | Critical {criticalCount} | Severity {severityText}";
         }
 
         if (_gateLabel != null)
@@ -2238,9 +2275,10 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (_spawnRuleLabel != null)
         {
+            int displayedStabilityDrain = Mathf.Abs(_lastComputedStabilityDrain);
             string rule = allowLongHints
-                ? $"Health loss now: -{_lastComputedStabilityDrain}/turn from crises. If Health reaches 0, you lose. CRITICAL can spread ({(spreadChance * 100f):0}%/turn). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s)."
-                : $"Health loss: -{_lastComputedStabilityDrain}/turn (lose at 0). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s).";
+                ? $"Health loss now: {displayedStabilityDrain}/turn from crises. If Health reaches 0, you lose. CRITICAL can spread ({(spreadChance * 100f):0}%/turn). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s)."
+                : $"Health loss: {displayedStabilityDrain}/turn (lose at 0). Next guaranteed crisis in {_turnsUntilGuaranteedSpawn} turn(s).";
 
             _spawnRuleLabel.text = rule;
         }
@@ -2266,7 +2304,8 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_actionCostLabel != null)
             {
-                _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
+                _actionCostLabel.text = string.Empty;
+                _actionCostLabel.style.display = DisplayStyle.None;
             }
 
             if (_typeEffectLabel != null)
@@ -2307,9 +2346,6 @@ public class VillageCrisisSystem : MonoBehaviour
             bool lacksWood = turns != null && currentWood < requiredWood;
             bool lacksStone = turns != null && currentStone < requiredStone;
             bool canAffordSelectedCost = turns != null && turns.CanAffordResources(selectedCost);
-            bool hasEnoughActionsForResponse = turns != null
-                && turns.State == Turns.TurnState.PlayerTurn
-                && (responseActionCost <= 0 || (turns.CanTakeAction && turns.ActionsRemaining >= responseActionCost));
             int responsePower = Mathf.Max(1, Mathf.RoundToInt(baseResponsePower * (selectedConnected ? 1f : disconnectedResponsePowerMultiplier)))
                 + (selectedConnected ? extraResponsePowerWhenConnected : 0);
             int severityStage = GetSeverityStage(selected.severity);
@@ -2361,34 +2397,37 @@ public class VillageCrisisSystem : MonoBehaviour
 
             if (_actionCostLabel != null)
             {
-                _actionCostLabel.text = responseActionCost == 1 ? "1 turn" : $"{responseActionCost} turns";
-                if (!hasEnoughActionsForResponse)
-                {
-                    _actionCostLabel.AddToClassList("crisis-text--critical");
-                }
-                else
-                {
-                    _actionCostLabel.RemoveFromClassList("crisis-text--critical");
-                }
+                _actionCostLabel.text = string.Empty;
+                _actionCostLabel.style.display = DisplayStyle.None;
             }
 
             if (_selectedHintLabel != null)
             {
-                string stageText = severityStage switch
+                string selectedHintText = BuildSeverityMilestoneMessage(selected, severityStage);
+                string trimmedTransientStatus = transientStatus?.Trim();
+
+                if (string.IsNullOrWhiteSpace(selectedHintText))
                 {
-                    3 => "CRITICAL",
-                    2 => "DANGER",
-                    1 => "WARNING",
-                    _ => "STABLE"
-                };
+                    selectedHintText = trimmedTransientStatus;
+                }
+                else if (!string.IsNullOrWhiteSpace(trimmedTransientStatus))
+                {
+                    string trimmedSelectedHint = selectedHintText.Trim();
+                    bool duplicatesHint =
+                        trimmedSelectedHint.Equals(trimmedTransientStatus, StringComparison.OrdinalIgnoreCase)
+                        || trimmedSelectedHint.Contains(trimmedTransientStatus, StringComparison.OrdinalIgnoreCase)
+                        || trimmedTransientStatus.Contains(trimmedSelectedHint, StringComparison.OrdinalIgnoreCase);
 
-                string baseHint = allowLongHints
-                    ? $"Location: highlighted village. Severity stage: {stageText}."
-                    : $"Severity stage: {stageText}.";
+                    if (!duplicatesHint)
+                    {
+                        selectedHintText = $"{selectedHintText} {trimmedTransientStatus}";
+                    }
+                }
 
-                _selectedHintLabel.text = string.IsNullOrWhiteSpace(transientStatus)
-                    ? baseHint
-                    : $"{baseHint} {transientStatus}";
+                _selectedHintLabel.text = selectedHintText;
+                _selectedHintLabel.style.display = string.IsNullOrWhiteSpace(selectedHintText)
+                    ? DisplayStyle.None
+                    : DisplayStyle.Flex;
             }
 
             if (_resolveHintLabel != null)
@@ -2398,21 +2437,11 @@ public class VillageCrisisSystem : MonoBehaviour
                     _resolveHintLabel.text = "Not enough resources to respond.";
                     _resolveHintLabel.AddToClassList("crisis-text--critical");
                 }
-                else if (!hasEnoughActionsForResponse)
-                {
-                    _resolveHintLabel.text = responseActionCost > 0
-                        ? $"Not enough actions to respond. Need {responseActionCost}."
-                        : "Cannot respond right now.";
-                    _resolveHintLabel.AddToClassList("crisis-text--critical");
-                }
                 else
                 {
-                    _resolveHintLabel.text =
-                        selectedConnected
-                            ? $"Connected: +{extraResponsePowerWhenConnected} response power and +{connectedResolveStabilityBonus} Health on resolve. Respond now lowers severity by {responsePower}."
-                            : disconnectedResolveFloor > 0
-                                ? $"Disconnected: response lowers severity by {responsePower}, but cannot resolve below {disconnectedResolveFloor}. Connect village to finish crisis."
-                                : $"Connect this village to the city for +{extraResponsePowerWhenConnected} response power.";
+                    _resolveHintLabel.text = disconnectedResolveFloor > 0
+                        ? $"Response lowers severity by {responsePower}, but cannot resolve below {Mathf.RoundToInt(disconnectedResolveFloor)}. Connect village to city and respond to fully resolve."
+                        : $"Response lowers severity by {responsePower}.";
                     _resolveHintLabel.RemoveFromClassList("crisis-text--critical");
                 }
             }
@@ -2449,14 +2478,14 @@ public class VillageCrisisSystem : MonoBehaviour
 
         if (_pressureLabel != null)
         {
-            _pressureLabel.text = $"Health loss this turn: -{_lastComputedStabilityDrain} (you lose at 0 Health)";
+            _pressureLabel.text = $"Health loss this turn: {Mathf.Abs(_lastComputedStabilityDrain)} (you lose at 0 Health)";
         }
 
         if (compactOverlay)
         {
             if (_selectedHintLabel != null)
             {
-                _selectedHintLabel.style.display = allowLongHints ? DisplayStyle.Flex : DisplayStyle.None;
+                _selectedHintLabel.style.display = DisplayStyle.Flex;
             }
 
             if (_controlsLabel != null)
@@ -2473,7 +2502,7 @@ public class VillageCrisisSystem : MonoBehaviour
         {
             if (_selectedHintLabel != null)
             {
-                _selectedHintLabel.style.display = allowLongHints ? DisplayStyle.Flex : DisplayStyle.None;
+                _selectedHintLabel.style.display = DisplayStyle.Flex;
             }
 
             if (_controlsLabel != null)
@@ -2590,30 +2619,18 @@ public class VillageCrisisSystem : MonoBehaviour
             return "Any active crisis drains health each turn.";
         }
 
-        int stage = GetSeverityStage(crisis.severity);
         switch (crisis.type)
         {
             case VillageCrisisType.Health:
-                return stage >= 2
-                    ? "Health: response costs are elevated at this severity and Health loss pressure is high."
-                    : "Health: response cost rises as severity climbs.";
+                return "Health: makes the village lose health faster and is harder to ignore.";
             case VillageCrisisType.Infrastructure:
-                int infrastructureIncreasePercent = Mathf.RoundToInt((GetInfrastructureBuildCostMultiplier() - 1f) * 100f);
-                return infrastructureIncreasePercent > 0
-                    ? $"Infrastructure: roads/buildings cost +{infrastructureIncreasePercent}% now."
-                    : "Infrastructure: no extra road/building cost right now.";
+                return "Infrastructure: makes roads and buildings harder to build.";
             case VillageCrisisType.Cultural:
-                return stage >= 2
-                    ? "Cultural: still cheaper than others, but prolonged neglect adds sustained map pressure."
-                    : "Cultural: usually the cheapest to respond to.";
+                return "Cultural: makes people less able to work together.";
             case VillageCrisisType.Nature:
-                return stage >= 2
-                    ? "Nature: wood-heavy responses are now expensive."
-                    : "Nature: tends to require more wood as severity rises.";
+                return "Nature: damages the land and makes responses need more wood.";
             case VillageCrisisType.Social:
-                return stage >= 2
-                    ? "Social: high severity adds stronger wood pressure and can snowball quickly."
-                    : "Social: high severity can add extra wood cost.";
+                return "Social: makes people unhappy and can spread to other villages if ignored.";
             default:
                 return "Any active crisis drains health each turn.";
         }
@@ -2650,39 +2667,81 @@ public class VillageCrisisSystem : MonoBehaviour
             return string.Empty;
         }
 
+        string stageLabel = stage switch
+        {
+            3 => "CRITICAL",
+            2 => "Danger",
+            _ => "Warning"
+        };
+
+        GetResponseCostIncrease(crisis, out int woodIncrease, out int stoneIncrease);
+
         return crisis.type switch
         {
-            VillageCrisisType.Infrastructure => stage switch
-            {
-                3 => "CRITICAL Infrastructure: building costs are heavily increased.",
-                2 => "Danger Infrastructure: construction costs are rising fast.",
-                _ => "Warning Infrastructure: build costs are starting to climb."
-            },
-            VillageCrisisType.Health => stage switch
-            {
-                3 => "CRITICAL Health: response costs and Health loss pressure are severe.",
-                2 => "Danger Health: response costs increased.",
-                _ => "Warning Health: prepare additional response resources."
-            },
-            VillageCrisisType.Nature => stage switch
-            {
-                3 => "CRITICAL Nature: wood-heavy containment required.",
-                2 => "Danger Nature: wood cost pressure is now high.",
-                _ => "Warning Nature: response wood demand increased."
-            },
-            VillageCrisisType.Social => stage switch
-            {
-                3 => "CRITICAL Social: crisis can destabilize quickly.",
-                2 => "Danger Social: resolve soon to avoid snowballing.",
-                _ => "Warning Social: pressure is increasing."
-            },
-            VillageCrisisType.Cultural => stage switch
-            {
-                3 => "CRITICAL Cultural: prolonged neglect is now dangerous.",
-                2 => "Danger Cultural: Health loss pressure is mounting.",
-                _ => "Warning Cultural: address before it escalates."
-            },
+            VillageCrisisType.Infrastructure => $"{stageLabel} Infrastructure: response +{woodIncrease}W/+{stoneIncrease}S. Build cost +{Mathf.Max(0, Mathf.RoundToInt((GetInfrastructureBuildCostMultiplier() - 1f) * 100f))}%.",
+            VillageCrisisType.Health => $"{stageLabel} Health: response +{woodIncrease}W/+{stoneIncrease}S. Extra Health loss +{GetTypeSpecificDrainBonus(crisis, stage)}/turn.",
+            VillageCrisisType.Nature => $"{stageLabel} Nature: response +{woodIncrease}W/+{stoneIncrease}S (wood-heavy).",
+            VillageCrisisType.Social => $"{stageLabel} Social: response +{woodIncrease}W/+{stoneIncrease}S. Extra spread chance +{GetExtraSpreadChance(crisis) * 100f:0}%.",
+            VillageCrisisType.Cultural => $"{stageLabel} Cultural: response +{woodIncrease}W/+{stoneIncrease}S. Extra Health loss +{GetTypeSpecificDrainBonus(crisis, stage)}/turn.",
             _ => "Crisis escalated to a new severity tier."
+        };
+    }
+
+    private void GetResponseCostIncrease(VillageCrisisState crisis, out int woodIncrease, out int stoneIncrease)
+    {
+        int woodIndex = (int)ResourceType.Wood;
+        int stoneIndex = (int)ResourceType.Stone;
+        int[] currentCost = BuildResponseResourceCost(crisis);
+        int currentWoodCost = (currentCost != null && woodIndex >= 0 && woodIndex < currentCost.Length)
+            ? currentCost[woodIndex]
+            : 1;
+        int currentStoneCost = (currentCost != null && stoneIndex >= 0 && stoneIndex < currentCost.Length)
+            ? currentCost[stoneIndex]
+            : 1;
+
+        woodIncrease = Mathf.Max(0, currentWoodCost - 1);
+        stoneIncrease = Mathf.Max(0, currentStoneCost - 1);
+    }
+
+    private float GetExtraSpreadChance(VillageCrisisState crisis)
+    {
+        if (crisis == null || crisis.type != VillageCrisisType.Social)
+        {
+            return 0f;
+        }
+
+        int stage = GetSeverityStage(crisis.severity);
+        return stage switch
+        {
+            3 => 0.08f,
+            2 => 0.04f,
+            1 => 0.02f,
+            _ => 0f
+        };
+    }
+
+    private int GetTypeSpecificDrainBonus(VillageCrisisState crisis, int severityStage)
+    {
+        if (crisis == null || severityStage <= 0)
+        {
+            return 0;
+        }
+
+        return crisis.type switch
+        {
+            VillageCrisisType.Health => severityStage switch
+            {
+                3 => 3,
+                2 => 2,
+                _ => 1
+            },
+            VillageCrisisType.Cultural => severityStage switch
+            {
+                3 => 2,
+                2 => 1,
+                _ => 0
+            },
+            _ => 0
         };
     }
 
@@ -2719,10 +2778,10 @@ public class VillageCrisisSystem : MonoBehaviour
         deterministicPerMapSeed = true;
 
         responseActionCost = Mathf.Max(1, responseActionCost);
-        baseResponsePower = Mathf.Max(55, baseResponsePower);
+        baseResponsePower = 50;
         extraResponsePowerWhenConnected = Mathf.Max(25, extraResponsePowerWhenConnected);
-        disconnectedResponsePowerMultiplier = Mathf.Clamp(disconnectedResponsePowerMultiplier, 0.65f, 0.85f);
-        disconnectedResolveFloor = Mathf.Clamp(disconnectedResolveFloor, 16, 30);
+        disconnectedResponsePowerMultiplier = 0.8f;
+        disconnectedResolveFloor = 20;
         connectedResolveStabilityBonus = Mathf.Max(4, connectedResolveStabilityBonus);
 
         passiveStabilityDrain = Mathf.Max(2, passiveStabilityDrain);
