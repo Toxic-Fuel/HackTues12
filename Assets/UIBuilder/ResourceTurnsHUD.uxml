@@ -14,7 +14,7 @@
         <ui:VisualElement name="resources-column" style="flex-grow: 0; gap: 14px; justify-content: center; padding-right: 0; margin-left: 74px;">
             <ui:VisualElement style="flex-direction: column; gap: 8px; margin-bottom: 2px; min-width: 300px;">
                 <ui:VisualElement style="flex-direction: row; align-items: center; gap: 10px;">
-                    <ui:Label text="Health" style="font-size: 28px; color: rgb(0, 0, 0); -unity-font-style: bold;"/>
+                    <ui:Label text="Villages Health" style="font-size: 28px; color: rgb(0, 0, 0); -unity-font-style: bold;"/>
                     <ui:Label name="health-count" text="100/100" style="font-size: 28px; color: rgb(0, 0, 0); -unity-font-style: bold;"/>
                 </ui:VisualElement>
                 <ui:VisualElement name="health-bar" style="height: 38px; width: 100%; min-width: 300px; background-color: rgba(0, 0, 0, 0); border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 0; border-top-left-radius: 10px; border-top-right-radius: 10px; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; overflow: hidden;">
