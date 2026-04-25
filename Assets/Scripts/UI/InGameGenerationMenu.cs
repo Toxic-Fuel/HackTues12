@@ -86,7 +86,7 @@ public class InGameGenerationMenu : MonoBehaviour
     private int starterMinDistance = 2;
     private int starterRadius = 4;
     private bool preserveNearestMine = true;
-    private string seedText = GenerateRandomSeed().ToString();
+    private string seedText = string.Empty;
 
     private bool isOpen;
     private bool pendingApplyWithoutGridMap;
