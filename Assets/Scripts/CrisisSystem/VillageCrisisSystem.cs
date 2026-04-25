@@ -2439,9 +2439,19 @@ public class VillageCrisisSystem : MonoBehaviour
                 }
                 else
                 {
-                    _resolveHintLabel.text = disconnectedResolveFloor > 0
-                        ? $"Response lowers severity by {responsePower}, but cannot resolve below {Mathf.RoundToInt(disconnectedResolveFloor)}. Connect village to city and respond to fully resolve."
-                        : $"Response lowers severity by {responsePower}.";
+                    if (!selectedConnected && disconnectedResolveFloor > 0)
+                    {
+                        _resolveHintLabel.text = $"Response lowers severity by {responsePower}, but cannot resolve below {Mathf.RoundToInt(disconnectedResolveFloor)}. Village should be connected for the crisis to be fully resolved.";
+                    }
+                    else if (responsePower >= selected.severity)
+                    {
+                        _resolveHintLabel.text = $"Response power: {responsePower}. This response can fully resolve the selected crisis.";
+                    }
+                    else
+                    {
+                        _resolveHintLabel.text = $"Response lowers severity by {responsePower}.";
+                    }
+
                     _resolveHintLabel.RemoveFromClassList("crisis-text--critical");
                 }
             }
