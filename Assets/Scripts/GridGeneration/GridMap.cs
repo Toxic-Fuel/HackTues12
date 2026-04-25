@@ -160,6 +160,14 @@ namespace GridGeneration
         private bool _isEditorRegenQueued;
 #endif
 
+        private void Awake()
+        {
+            if (seed == 0)
+            {
+                seed = GenerateRandomSeed();
+            }
+        }
+
         private void Start()
         {
             GenerateLandMap();
@@ -829,6 +837,18 @@ namespace GridGeneration
             {
                 ClearCityStartMarker();
             }
+        }
+
+        private static int GenerateRandomSeed()
+        {
+            int generatedSeed;
+            do
+            {
+                generatedSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            }
+            while (generatedSeed == 0);
+
+            return generatedSeed;
         }
 
         private void EnsureStarterResourcesAroundCity(System.Random rng, Vector2Int cityCoordinate)

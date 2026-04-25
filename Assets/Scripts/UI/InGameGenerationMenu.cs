@@ -86,7 +86,7 @@ public class InGameGenerationMenu : MonoBehaviour
     private int starterMinDistance = 2;
     private int starterRadius = 4;
     private bool preserveNearestMine = true;
-    private string seedText = "0";
+    private string seedText = GenerateRandomSeed().ToString();
 
     private bool isOpen;
     private bool pendingApplyWithoutGridMap;
@@ -977,6 +977,11 @@ public class InGameGenerationMenu : MonoBehaviour
             return;
         }
 
+        if (gridMap.seed == 0)
+        {
+            gridMap.seed = GenerateRandomSeed();
+        }
+
         obstaclePercent = gridMap.ObstaclePercent;
         limitMineSourceTiles = gridMap.LimitMineSourceTiles;
         maxMineSourceTilesCap = ConvertPercentToMineSourceCap(gridMap.MaxMineSourcePercent);
@@ -985,7 +990,29 @@ public class InGameGenerationMenu : MonoBehaviour
         starterMinDistance = gridMap.StarterResourceMinDistanceFromCity;
         starterRadius = gridMap.StarterResourceRadius;
         preserveNearestMine = gridMap.PreserveNearestMineSourceToCity;
-        seedText = gridMap.seed.ToString();
+        seedText = NormalizeSeedText(gridMap.seed.ToString());
+    }
+
+    private static int GenerateRandomSeed()
+    {
+        int generatedSeed;
+        do
+        {
+            generatedSeed = Random.Range(int.MinValue, int.MaxValue);
+        }
+        while (generatedSeed == 0);
+
+        return generatedSeed;
+    }
+
+    private static string NormalizeSeedText(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value == "0")
+        {
+            return GenerateRandomSeed().ToString();
+        }
+
+        return value;
     }
 
     private void ApplyStateFromControls()
@@ -1052,6 +1079,7 @@ public class InGameGenerationMenu : MonoBehaviour
     private void SyncControlsFromState()
     {
         suppressUiCallbacks = true;
+        seedText = NormalizeSeedText(seedText);
 
         if (seedField != null)
         {
