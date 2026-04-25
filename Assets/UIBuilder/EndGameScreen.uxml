@@ -13,6 +13,7 @@
                 <ui:Button name="CloseSummaryButton" text="X" class="endgame-close-button"/>
             </ui:VisualElement>
             <ui:Label name="ResultTitle" text="Result" class="result-title"/>
+            <ui:Label name="CauseOfDeathText" text="" class="cause-of-death-text"/>
 
             <ui:VisualElement name="EndGameBody" class="endgame-body">
                 <ui:VisualElement name="StatsColumn" class="stats-column">
@@ -25,8 +26,8 @@
 
                 <ui:VisualElement name="ButtonsColumn" class="buttons-column">
                     <ui:Button name="ViewMapButton" text="View Map" class="endgame-button"/>
-                    <ui:Button name="PlayAgainButton" text="Play again (same seed)" class="endgame-button"/>
-                    <ui:Button name="PlayAgainNewSeedButton" text="Play again (new seed)" class="endgame-button"/>
+                    <ui:Button name="PlayAgainButton" text="Play again" class="endgame-button"/>
+                    <ui:Button name="PlayAgainNewSeedButton" text="New game" class="endgame-button"/>
                     <ui:Button name="QuitButton" text="Quit" class="endgame-button"/>
                 </ui:VisualElement>
             </ui:VisualElement>

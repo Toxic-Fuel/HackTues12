@@ -13,6 +13,15 @@ namespace UI
     [RequireComponent(typeof(UIDocument))]
     public class EndGameScreenController : MonoBehaviour
     {
+        private enum DeathCause
+        {
+            None,
+            Turns,
+            Health
+        }
+
+        private DeathCause _lastDeathCause = DeathCause.None;
+
         [Header("References")]
         [SerializeField] private UIDocument endGameDocument;
         [SerializeField] private StyleSheet endGameStyleSheet;
@@ -52,6 +61,7 @@ namespace UI
         private Button _playAgainNewSeedButton;
         private Button _quitButton;
         private Button _closeSummaryButton;
+        private Label causeOfDeathText;
 
         private readonly Dictionary<Component, bool> _previousEnabledStates = new Dictionary<Component, bool>();
         private bool _lastVisibleState;
@@ -161,6 +171,7 @@ namespace UI
             CacheControls();
             RegisterCallbacks();
             SetSummary(resultText, score, highscore, speedRatingPercent, difficultyPercent);
+            UpdateCauseOfDeathLabel();
 
             SetAnimationOpenState(false);
             ScheduleOpenAnimation();
@@ -233,16 +244,6 @@ namespace UI
             ApplyScreenEnabledState(false);
         }
 
-        public void ShowVictory(int score, int speedRatingPercent, int difficultyPercent)
-        {
-            Show("Victory", score, score, speedRatingPercent, difficultyPercent);
-        }
-
-        public void ShowDefeat(int score, int speedRatingPercent, int difficultyPercent)
-        {
-            Show("Defeat", score, score, speedRatingPercent, difficultyPercent);
-        }
-
         private void CacheControls()
         {
             if (endGameDocument == null)
@@ -275,6 +276,60 @@ namespace UI
             _playAgainNewSeedButton = root.Q<Button>("PlayAgainNewSeedButton");
             _quitButton = root.Q<Button>("QuitButton");
             _closeSummaryButton = root.Q<Button>("CloseSummaryButton");
+
+            CacheUiReferences(root);
+        }
+
+        private void CacheUiReferences(VisualElement root)
+        {
+            causeOfDeathText = root.Q<Label>("CauseOfDeathText");
+            if (causeOfDeathText != null)
+            {
+                causeOfDeathText.text = string.Empty;
+                causeOfDeathText.style.display = DisplayStyle.None;
+            }
+        }
+
+        private void UpdateCauseOfDeathLabel()
+        {
+            if (causeOfDeathText == null)
+            {
+                return;
+            }
+
+            bool isDefeat = string.Equals(_lastResultText, "Defeat", System.StringComparison.OrdinalIgnoreCase);
+            if (!isDefeat)
+            {
+                causeOfDeathText.text = string.Empty;
+                causeOfDeathText.style.display = DisplayStyle.None;
+                return;
+            }
+
+            causeOfDeathText.style.display = DisplayStyle.Flex;
+            switch (_lastDeathCause)
+            {
+                case DeathCause.Turns:
+                    causeOfDeathText.text = "Cause of death: Turns ran out";
+                    break;
+                case DeathCause.Health:
+                    causeOfDeathText.text = "Cause of death: Health reached 0";
+                    break;
+                default:
+                    causeOfDeathText.text = "Cause of death: Defeat condition reached";
+                    break;
+            }
+        }
+
+        private void SetCauseOfDeath(bool diedOnTurns)
+        {
+            if (causeOfDeathText == null)
+            {
+                return;
+            }
+
+            causeOfDeathText.text = diedOnTurns
+                ? "Cause of death: Death on turns"
+                : "Cause of death: Death on health";
         }
 
         private void SetAnimationOpenState(bool isOpen)
@@ -563,6 +618,31 @@ namespace UI
             }
 
             _previousEnabledStates.Clear();
+        }
+
+        public void ShowDefeatOnTurns(int score, int speedRatingPercent, int difficultyPercent)
+        {
+            _lastDeathCause = DeathCause.Turns;
+            Show("Defeat", score, score, speedRatingPercent, difficultyPercent);
+        }
+
+        public void ShowDefeatOnHealth(int score, int speedRatingPercent, int difficultyPercent)
+        {
+            _lastDeathCause = DeathCause.Health;
+            Show("Defeat", score, score, speedRatingPercent, difficultyPercent);
+        }
+
+        // Keep this only as legacy fallback (do not use for real defeat flow)
+        public void ShowDefeat(int score, int speedRatingPercent, int difficultyPercent)
+        {
+            _lastDeathCause = DeathCause.Health;
+            Show("Defeat", score, score, speedRatingPercent, difficultyPercent);
+        }
+
+        public void ShowVictory(int score, int speedRatingPercent, int difficultyPercent)
+        {
+            _lastDeathCause = DeathCause.None;
+            Show("Victory", score, score, speedRatingPercent, difficultyPercent);
         }
 
         private string BuildSeedSummaryText()
