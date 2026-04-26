@@ -193,8 +193,7 @@ public class WinCondition : MonoBehaviour
         }
 
         Dictionary<Vector2Int, List<Vector2Int>> paths = FindShortestPaths(cityPos, villages);
-
-        bool allConnected = paths.Count == villages.Count;
+        bool allConnected = AreAllVillagesConnected(villages, paths);
         bool crisisGateOpen = crisisSystem == null || crisisSystem.CanDeclareVictory();
 
         if (allConnected && crisisGateOpen && !hasWon)
@@ -224,6 +223,33 @@ public class WinCondition : MonoBehaviour
     private void OnTurnEnded(Turns _)
     {
         EvaluateWinCondition();
+    }
+
+    private bool AreAllVillagesConnected(List<Vector2Int> villages, Dictionary<Vector2Int, List<Vector2Int>> fallbackPaths)
+    {
+        if (villages == null || villages.Count == 0)
+        {
+            return false;
+        }
+
+        if (tileBuilding != null)
+        {
+            int connectedCount = 0;
+            for (int i = 0; i < villages.Count; i++)
+            {
+                if (tileBuilding.IsCoordinateConnectedToCity(villages[i]))
+                {
+                    connectedCount++;
+                }
+            }
+
+            if (connectedCount == villages.Count)
+            {
+                return true;
+            }
+        }
+
+        return fallbackPaths != null && fallbackPaths.Count == villages.Count;
     }
 
     private bool TryFindCity(out Vector2Int cityPos)
